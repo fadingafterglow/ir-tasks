@@ -1,0 +1,12 @@
+S -> TA
+A -> |TA
+A -> ε
+T -> EB
+B -> &EB
+B -> ε
+E -> NI
+N -> !
+N -> ε
+I -> (S)
+I -> W
+W -> any word
