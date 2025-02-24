@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public abstract class MultiOperandExpression extends BaseExpression {
+public abstract class MultiOperandExpression implements Expression {
     protected final List<Expression> subExpressions;
 
     public MultiOperandExpression(Expression left, Expression right, Expression... others) {

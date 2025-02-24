@@ -1,25 +1,13 @@
 package expression;
 
-import java.util.List;
+public class NotExpression implements Expression {
+    private final Expression subExpression;
 
-public class NotExpression extends BaseExpression {
-    private final Expression expression;
-
-    public NotExpression(Expression expression) {
-        this.expression = expression;
+    public NotExpression(Expression subExpression) {
+        this.subExpression = subExpression;
     }
 
-    public Expression getExpression() {
-        return expression;
-    }
-
-    @Override
-    public List<Long> execute() {
-        return List.of();
-    }
-
-    @Override
-    public long estimate() {
-        return 0;
+    public Expression getSubExpression() {
+        return subExpression;
     }
 }
