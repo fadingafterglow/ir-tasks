@@ -84,8 +84,8 @@ public class IndexQueryExecutor implements QueryExecutor {
         e.getSubExpressions().sort(comparing(estimation::get).reversed());
         List<Integer> result = executeForIds(e.getSubExpressions().getFirst(), estimation);
         for (Expression sub : e.getSubExpressions().subList(1, e.getSubExpressions().size())) {
-            result = executeOr(result, executeForIds(sub, estimation));
             if (result.size() == index.documentsCount()) break;
+            result = executeOr(result, executeForIds(sub, estimation));
         }
         return result;
     }

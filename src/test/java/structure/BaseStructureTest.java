@@ -9,11 +9,11 @@ import static org.mockito.Mockito.when;
 
 public abstract class BaseStructureTest {
     protected final static List<Document> documents = List.of(
-            documentOf("0", "a D, f! H; i"),
-            documentOf("1", "a E' \"g h\""),
+            documentOf("0", "a D, f! H; i, a, d; H"),
+            documentOf("1", "a E' \"g h\" [a h]"),
             documentOf("2", "a #b f&h j"),
-            documentOf("3", "b g: h"),
-            documentOf("4", "c?! d (e) f h")
+            documentOf("3", "b g h"),
+            documentOf("4", "h 'f c?! d (e) f h")
     );;
 
     /*

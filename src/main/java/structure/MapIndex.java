@@ -39,12 +39,14 @@ public class MapIndex implements Index {
         List<Integer> ids = new ArrayList<>();
         ids.add(pairs.getFirst().documentId);
         for (Pair p: pairs.subList(1, pairs.size())) {
-            if (!p.term.equals(term)) {
+            if (!term.equals(p.term)) {
                 index.put(term, ids);
                 term = p.term;
                 ids = new ArrayList<>();
+                ids.add(p.documentId);
             }
-            ids.add(p.documentId);
+            else if (!ids.getLast().equals(p.documentId))
+                ids.add(p.documentId);
         }
         index.put(term, ids);
     }

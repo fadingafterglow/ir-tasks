@@ -20,6 +20,11 @@ public abstract class FileDocument implements Document {
         return path.toString();
     }
 
+    @Override
+    public long getSize() {
+        return path.toFile().length();
+    }
+
     protected void validateFile() {
         if (path == null)
             throw new IllegalArgumentException("File path can not be null");
