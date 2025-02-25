@@ -82,8 +82,6 @@ public abstract class BaseQueryExecutorTest {
                 Arguments.of(new AndExpression(new TermExpression("d"), new NotExpression(new TermExpression("f")), new NotExpression(new TermExpression("e"))), List.of()),
                 Arguments.of(new AndExpression(new TermExpression("h"), new NotExpression(new TermExpression("d")), new NotExpression(new TermExpression("b"))), List.of("1")),
                 Arguments.of(new AndExpression(new NotExpression(new TermExpression("d")), new NotExpression(new TermExpression("f")), new NotExpression(new TermExpression("e"))), List.of("3"))
-
-
         );
     }
 

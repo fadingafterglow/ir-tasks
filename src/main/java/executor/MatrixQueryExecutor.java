@@ -51,10 +51,10 @@ public class MatrixQueryExecutor implements QueryExecutor {
 
     private boolean[] executeAnd(AndExpression e) {
         LazyRowCollection rows = new LazyRowCollection(e.getSubExpressions());
-        boolean[] result = rows.getRow(0);
+        boolean[] result = rows.getResultRow();
         for (int i = 0; i < matrix.documentsCount(); i++) {
             for (int j = 0; j < e.getSubExpressions().size(); j++) {
-                if (!rows.getRow(j)[i]) {
+                if (!rows.getValue(j, i)) {
                     result[i] = false;
                     break;
                 }
@@ -65,10 +65,10 @@ public class MatrixQueryExecutor implements QueryExecutor {
 
     private boolean[] executeOr(OrExpression e) {
         LazyRowCollection rows = new LazyRowCollection(e.getSubExpressions());
-        boolean[] result = rows.getRow(0);
+        boolean[] result = rows.getResultRow();
         for (int i = 0; i < matrix.documentsCount(); i++) {
             for (int j = 0; j < e.getSubExpressions().size(); j++) {
-                if (rows.getRow(j)[i]) {
+                if (rows.getValue(j, i)) {
                     result[i] = true;
                     break;
                 }
@@ -79,17 +79,33 @@ public class MatrixQueryExecutor implements QueryExecutor {
 
     private class LazyRowCollection {
         private final List<Expression> expressions;
-        private final boolean[][] rows;
+        private final RowInfo[] info;
 
         public LazyRowCollection(List<Expression> expressions) {
             this.expressions = expressions;
-            this.rows = new boolean[expressions.size()][];
+            this.info = new RowInfo[expressions.size()];
+            this.info[0] = new RowInfo(false, executeForRow(expressions.getFirst()));
         }
 
-        public boolean[] getRow(int index) {
-            if (rows[index] == null)
-                rows[index] = executeForRow(expressions.get(index));
-            return rows[index];
+        public boolean[] getResultRow() {
+            return info[0].values;
         }
+
+        public boolean getValue(int row, int column) {
+            if (info[row] == null)
+                loadRow(row);
+            RowInfo rowInfo = info[row];
+            return rowInfo.shouldNegate() ^ rowInfo.values[column];
+        }
+
+        private void loadRow(int row) {
+            Expression expression = expressions.get(row);
+            if (expression instanceof NotExpression ne)
+                info[row] = new RowInfo(true, executeForRow(ne.getSubExpression()));
+            else
+                info[row] = new RowInfo(false, executeForRow(expression));
+        }
+
+        public record RowInfo(boolean shouldNegate, boolean[] values) {}
     }
 }
