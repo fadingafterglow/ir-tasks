@@ -1,7 +1,7 @@
 package executor;
 
 import expression.*;
-import structures.Matrix;
+import structure.Matrix;
 
 import java.util.ArrayList;
 import java.util.Arrays;

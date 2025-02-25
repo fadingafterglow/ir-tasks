@@ -1,12 +1,11 @@
 package parser;
 
 import java.util.Locale;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 class Query {
     public static final char QUERY_END_CHARACTER = '\0';
-    private final static Pattern REPLACE_PATTERN = Pattern.compile("\\bAND\\b|\\bOR\\b|\\bNOT\\b|[\\s,.?!;:\"&|]");
+    private final static Pattern REPLACE_PATTERN = Pattern.compile("\\bAND\\b|\\bOR\\b|\\bNOT\\b|[^\\p{L}]+['-]|['-][^\\p{L}]+|[\\s,.?!;:\"“”‘’…/\\\\—–\\[\\]{}&|№#$%*+=^]+");
     private final String body;
     private int index;
 

@@ -1,8 +1,6 @@
 package executor;
 
-import structures.Matrix;
-
-import java.util.List;
+import structure.Matrix;
 
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;

@@ -1,11 +1,10 @@
 package executor;
 
-import structures.Index;
+import structure.Index;
 
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
