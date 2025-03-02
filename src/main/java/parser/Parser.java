@@ -24,8 +24,8 @@ public class Parser {
         if (query.currentChar() == '|') {
             query.moveNext();
             Expression right = T();
-            if (left instanceof OrExpression moe)
-                moe.addSubExpression(right);
+            if (left instanceof OrExpression oe)
+                oe.addSubExpression(right);
             else
                 left = new OrExpression(left, right);
             return A(left);
@@ -43,8 +43,8 @@ public class Parser {
         if (query.currentChar() == '&') {
             query.moveNext();
             Expression right = E();
-            if (left instanceof AndExpression moe)
-                moe.addSubExpression(right);
+            if (left instanceof AndExpression ae)
+                ae.addSubExpression(right);
             else
                 left = new AndExpression(left, right);
             return B(left);
@@ -75,23 +75,48 @@ public class Parser {
             match(')');
             return inner;
         }
+        else {
+            Expression left = W();
+            return C(left);
+        }
+    }
+
+    private Expression C(Expression left) throws SyntaxException {
+        if (query.currentChar() == '/') {
+            query.moveNext();
+            int proximity = Q();
+            match('/');
+            Expression right = W();
+            return C(new ProximityExpression(left, right, proximity));
+        }
         else
-            return W();
+            return left;
+    }
+
+    private int Q() throws SyntaxException {
+        int proximity = 0;
+        while (Character.isDigit(query.currentChar())) {
+            proximity = proximity * 10 + (query.currentChar() - '0');
+            query.moveNext();
+        }
+        if (proximity == 0)
+            throw new SyntaxException("Found zero or empty proximity number at " + query.currentIndex(), query.currentChar(), query.currentIndex());
+        return proximity;
     }
 
     private Expression W() throws SyntaxException {
         StringBuilder sb = new StringBuilder();
-        while (isTermChar(query.currentChar())) {
+        while (!isReservedChar(query.currentChar())) {
             sb.append(query.currentChar());
             query.moveNext();
         }
         if (sb.isEmpty())
             throw new SyntaxException("Found empty term at " + query.currentIndex(), query.currentChar(), query.currentIndex());
-        return new TermExpression(sb.toString());
+        return new PhraseExpression(sb.toString());
     }
 
-    private boolean isTermChar(char ch) {
-        return ch != '|' && ch != '&' && ch != '!' && ch != '(' && ch != ')' && ch != Query.QUERY_END_CHARACTER;
+    private boolean isReservedChar(char ch) {
+        return ch == '|' || ch == '&' || ch == '!' || ch == '(' || ch == ')' || ch == '/' || ch == Query.QUERY_END_CHARACTER;
     }
 
     private void match(char current) throws SyntaxException {

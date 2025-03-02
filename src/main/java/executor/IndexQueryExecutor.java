@@ -24,7 +24,7 @@ public class IndexQueryExecutor implements QueryExecutor {
 
     private void estimate(Expression query, Map<Expression, Integer> estimation) {
         switch (query) {
-            case TermExpression te -> estimation.put(te, index.getDocumentFrequency(te.getTerm()));
+            case PhraseExpression pe -> estimation.put(pe, index.getDocumentFrequency(pe.getPhrase()));
             case NotExpression ne -> estimateNot(ne, estimation);
             case AndExpression ae -> estimateAnd(ae, estimation);
             case OrExpression oe -> estimateOr(oe, estimation);
@@ -55,7 +55,7 @@ public class IndexQueryExecutor implements QueryExecutor {
 
     private List<Integer> executeForIds(Expression query, Map<Expression, Integer> estimation) {
         return switch (query) {
-            case TermExpression te -> index.getDocumentIds(te.getTerm());
+            case PhraseExpression pe -> index.getDocumentIds(pe.getPhrase());
             case NotExpression ne -> executeNot(ne, estimation);
             case AndExpression ae -> executeAnd(ae, estimation);
             case OrExpression oe -> executeOr(oe, estimation);

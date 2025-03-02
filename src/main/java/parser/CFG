@@ -8,5 +8,8 @@ E -> NI
 N -> !
 N -> ε
 I -> (S)
-I -> W
-W -> any word
+I -> WC
+C -> /Q/WC
+C -> ε
+Q -> [any number]
+W -> [any phrase]

@@ -29,7 +29,7 @@ public class MatrixQueryExecutor implements QueryExecutor {
 
     private boolean[] executeForRow(Expression query) {
         return switch (query) {
-            case TermExpression te -> executeTerm(te);
+            case PhraseExpression pe -> executeTerm(pe);
             case NotExpression ne -> executeNot(ne);
             case AndExpression ae -> executeAnd(ae);
             case OrExpression oe -> executeOr(oe);
@@ -37,8 +37,8 @@ public class MatrixQueryExecutor implements QueryExecutor {
         };
     }
 
-    private boolean[] executeTerm(TermExpression e) {
-        boolean[] row = matrix.getDocumentsRow(e.getTerm());
+    private boolean[] executeTerm(PhraseExpression e) {
+        boolean[] row = matrix.getDocumentsRow(e.getPhrase());
         return Arrays.copyOf(row, row.length);
     }
 

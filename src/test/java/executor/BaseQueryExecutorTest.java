@@ -22,7 +22,7 @@ public abstract class BaseQueryExecutorTest {
 
     @ParameterizedTest
     @MethodSources({
-            @MethodSource("testTerm"),
+            @MethodSource("testPhrase"),
             @MethodSource("testNot"),
             @MethodSource("testAnd"),
             @MethodSource("testOr"),
@@ -46,63 +46,63 @@ public abstract class BaseQueryExecutorTest {
         j: 2
      */
 
-    public static Stream<Arguments> testTerm() {
+    public static Stream<Arguments> testPhrase() {
         return Stream.of(
-                Arguments.of(new TermExpression("a"), List.of("0", "1", "2")),
-                Arguments.of(new TermExpression("b"), List.of("2", "3")),
-                Arguments.of(new TermExpression("c"), List.of("4")),
-                Arguments.of(new TermExpression("invalid"), List.of())
+                Arguments.of(new PhraseExpression("a"), List.of("0", "1", "2")),
+                Arguments.of(new PhraseExpression("b"), List.of("2", "3")),
+                Arguments.of(new PhraseExpression("c"), List.of("4")),
+                Arguments.of(new PhraseExpression("invalid"), List.of())
         );
     }
 
     public static Stream<Arguments> testNot() {
         return Stream.of(
-                Arguments.of(new NotExpression(new TermExpression("a")), List.of("3", "4")),
-                Arguments.of(new NotExpression(new TermExpression("b")), List.of("0", "1", "4")),
-                Arguments.of(new NotExpression(new TermExpression("c")), List.of("0", "1", "2", "3")),
-                Arguments.of(new NotExpression(new TermExpression("invalid")), List.of("0", "1", "2", "3", "4"))
+                Arguments.of(new NotExpression(new PhraseExpression("a")), List.of("3", "4")),
+                Arguments.of(new NotExpression(new PhraseExpression("b")), List.of("0", "1", "4")),
+                Arguments.of(new NotExpression(new PhraseExpression("c")), List.of("0", "1", "2", "3")),
+                Arguments.of(new NotExpression(new PhraseExpression("invalid")), List.of("0", "1", "2", "3", "4"))
         );
     }
 
     public static Stream<Arguments> testAnd() {
         return Stream.of(
-                Arguments.of(new AndExpression(new TermExpression("a"), new TermExpression("b")), List.of("2")),
-                Arguments.of(new AndExpression(new TermExpression("a"), new TermExpression("c")), List.of()),
-                Arguments.of(new AndExpression(new TermExpression("a"), new TermExpression("h")), List.of("0", "1", "2")),
-                Arguments.of(new AndExpression(new TermExpression("d"), new TermExpression("f"), new TermExpression("e")), List.of("4")),
-                Arguments.of(new AndExpression(new TermExpression("d"), new TermExpression("f"), new TermExpression("e"), new TermExpression("g")), List.of()),
-                Arguments.of(new AndExpression(new TermExpression("invalid"), new TermExpression("a"), new TermExpression("b")), List.of()),
-                Arguments.of(new AndExpression(new TermExpression("a"), new NotExpression(new TermExpression("c"))), List.of("0", "1", "2")),
-                Arguments.of(new AndExpression(new TermExpression("c"), new NotExpression(new TermExpression("a"))), List.of("4")),
-                Arguments.of(new AndExpression(new TermExpression("a"), new NotExpression(new TermExpression("h"))), List.of()),
-                Arguments.of(new AndExpression(new TermExpression("h"), new NotExpression(new TermExpression("a"))), List.of("3", "4")),
-                Arguments.of(new AndExpression(new TermExpression("a"), new NotExpression(new TermExpression("f"))), List.of("1")),
-                Arguments.of(new AndExpression(new TermExpression("f"), new NotExpression(new TermExpression("a"))), List.of("4")),
-                Arguments.of(new AndExpression(new TermExpression("d"), new TermExpression("f"), new NotExpression(new TermExpression("e"))), List.of("0")),
-                Arguments.of(new AndExpression(new TermExpression("d"), new NotExpression(new TermExpression("f")), new NotExpression(new TermExpression("e"))), List.of()),
-                Arguments.of(new AndExpression(new TermExpression("h"), new NotExpression(new TermExpression("d")), new NotExpression(new TermExpression("b"))), List.of("1")),
-                Arguments.of(new AndExpression(new NotExpression(new TermExpression("d")), new NotExpression(new TermExpression("f")), new NotExpression(new TermExpression("e"))), List.of("3"))
+                Arguments.of(new AndExpression(new PhraseExpression("a"), new PhraseExpression("b")), List.of("2")),
+                Arguments.of(new AndExpression(new PhraseExpression("a"), new PhraseExpression("c")), List.of()),
+                Arguments.of(new AndExpression(new PhraseExpression("a"), new PhraseExpression("h")), List.of("0", "1", "2")),
+                Arguments.of(new AndExpression(new PhraseExpression("d"), new PhraseExpression("f"), new PhraseExpression("e")), List.of("4")),
+                Arguments.of(new AndExpression(new PhraseExpression("d"), new PhraseExpression("f"), new PhraseExpression("e"), new PhraseExpression("g")), List.of()),
+                Arguments.of(new AndExpression(new PhraseExpression("invalid"), new PhraseExpression("a"), new PhraseExpression("b")), List.of()),
+                Arguments.of(new AndExpression(new PhraseExpression("a"), new NotExpression(new PhraseExpression("c"))), List.of("0", "1", "2")),
+                Arguments.of(new AndExpression(new PhraseExpression("c"), new NotExpression(new PhraseExpression("a"))), List.of("4")),
+                Arguments.of(new AndExpression(new PhraseExpression("a"), new NotExpression(new PhraseExpression("h"))), List.of()),
+                Arguments.of(new AndExpression(new PhraseExpression("h"), new NotExpression(new PhraseExpression("a"))), List.of("3", "4")),
+                Arguments.of(new AndExpression(new PhraseExpression("a"), new NotExpression(new PhraseExpression("f"))), List.of("1")),
+                Arguments.of(new AndExpression(new PhraseExpression("f"), new NotExpression(new PhraseExpression("a"))), List.of("4")),
+                Arguments.of(new AndExpression(new PhraseExpression("d"), new PhraseExpression("f"), new NotExpression(new PhraseExpression("e"))), List.of("0")),
+                Arguments.of(new AndExpression(new PhraseExpression("d"), new NotExpression(new PhraseExpression("f")), new NotExpression(new PhraseExpression("e"))), List.of()),
+                Arguments.of(new AndExpression(new PhraseExpression("h"), new NotExpression(new PhraseExpression("d")), new NotExpression(new PhraseExpression("b"))), List.of("1")),
+                Arguments.of(new AndExpression(new NotExpression(new PhraseExpression("d")), new NotExpression(new PhraseExpression("f")), new NotExpression(new PhraseExpression("e"))), List.of("3"))
         );
     }
 
     public static Stream<Arguments> testOr() {
         return Stream.of(
-                Arguments.of(new OrExpression(new TermExpression("a"), new TermExpression("b")), List.of("0", "1", "2", "3")),
-                Arguments.of(new OrExpression(new TermExpression("a"), new TermExpression("c")), List.of("0", "1", "2", "4")),
-                Arguments.of(new OrExpression(new TermExpression("a"), new TermExpression("h")), List.of("0", "1", "2", "3", "4")),
-                Arguments.of(new OrExpression(new TermExpression("d"), new TermExpression("f"), new TermExpression("e")), List.of("0", "1", "2", "4")),
-                Arguments.of(new OrExpression(new TermExpression("d"), new TermExpression("f"), new TermExpression("e"), new TermExpression("g")), List.of("0", "1", "2", "3", "4")),
-                Arguments.of(new OrExpression(new TermExpression("invalid"), new TermExpression("a"), new TermExpression("b")), List.of("0", "1", "2", "3")),
-                Arguments.of(new OrExpression(new TermExpression("a"), new NotExpression(new TermExpression("c"))), List.of("0", "1", "2", "3")),
-                Arguments.of(new OrExpression(new TermExpression("c"), new NotExpression(new TermExpression("a"))), List.of("3", "4")),
-                Arguments.of(new OrExpression(new TermExpression("a"), new NotExpression(new TermExpression("h"))), List.of("0", "1", "2")),
-                Arguments.of(new OrExpression(new TermExpression("h"), new NotExpression(new TermExpression("a"))), List.of("0", "1", "2", "3", "4")),
-                Arguments.of(new OrExpression(new TermExpression("a"), new NotExpression(new TermExpression("f"))), List.of("0", "1", "2", "3")),
-                Arguments.of(new OrExpression(new TermExpression("f"), new NotExpression(new TermExpression("a"))), List.of("0", "2", "3", "4")),
-                Arguments.of(new OrExpression(new TermExpression("d"), new TermExpression("f"), new NotExpression(new TermExpression("e"))), List.of("0", "2", "3", "4")),
-                Arguments.of(new OrExpression(new TermExpression("d"), new NotExpression(new TermExpression("f")), new NotExpression(new TermExpression("e"))), List.of("0", "1", "2", "3", "4")),
-                Arguments.of(new OrExpression(new TermExpression("h"), new NotExpression(new TermExpression("d")), new NotExpression(new TermExpression("b"))), List.of("0", "1", "2", "3", "4")),
-                Arguments.of(new OrExpression(new NotExpression(new TermExpression("d")), new NotExpression(new TermExpression("f")), new NotExpression(new TermExpression("e"))), List.of("0", "1", "2", "3"))
+                Arguments.of(new OrExpression(new PhraseExpression("a"), new PhraseExpression("b")), List.of("0", "1", "2", "3")),
+                Arguments.of(new OrExpression(new PhraseExpression("a"), new PhraseExpression("c")), List.of("0", "1", "2", "4")),
+                Arguments.of(new OrExpression(new PhraseExpression("a"), new PhraseExpression("h")), List.of("0", "1", "2", "3", "4")),
+                Arguments.of(new OrExpression(new PhraseExpression("d"), new PhraseExpression("f"), new PhraseExpression("e")), List.of("0", "1", "2", "4")),
+                Arguments.of(new OrExpression(new PhraseExpression("d"), new PhraseExpression("f"), new PhraseExpression("e"), new PhraseExpression("g")), List.of("0", "1", "2", "3", "4")),
+                Arguments.of(new OrExpression(new PhraseExpression("invalid"), new PhraseExpression("a"), new PhraseExpression("b")), List.of("0", "1", "2", "3")),
+                Arguments.of(new OrExpression(new PhraseExpression("a"), new NotExpression(new PhraseExpression("c"))), List.of("0", "1", "2", "3")),
+                Arguments.of(new OrExpression(new PhraseExpression("c"), new NotExpression(new PhraseExpression("a"))), List.of("3", "4")),
+                Arguments.of(new OrExpression(new PhraseExpression("a"), new NotExpression(new PhraseExpression("h"))), List.of("0", "1", "2")),
+                Arguments.of(new OrExpression(new PhraseExpression("h"), new NotExpression(new PhraseExpression("a"))), List.of("0", "1", "2", "3", "4")),
+                Arguments.of(new OrExpression(new PhraseExpression("a"), new NotExpression(new PhraseExpression("f"))), List.of("0", "1", "2", "3")),
+                Arguments.of(new OrExpression(new PhraseExpression("f"), new NotExpression(new PhraseExpression("a"))), List.of("0", "2", "3", "4")),
+                Arguments.of(new OrExpression(new PhraseExpression("d"), new PhraseExpression("f"), new NotExpression(new PhraseExpression("e"))), List.of("0", "2", "3", "4")),
+                Arguments.of(new OrExpression(new PhraseExpression("d"), new NotExpression(new PhraseExpression("f")), new NotExpression(new PhraseExpression("e"))), List.of("0", "1", "2", "3", "4")),
+                Arguments.of(new OrExpression(new PhraseExpression("h"), new NotExpression(new PhraseExpression("d")), new NotExpression(new PhraseExpression("b"))), List.of("0", "1", "2", "3", "4")),
+                Arguments.of(new OrExpression(new NotExpression(new PhraseExpression("d")), new NotExpression(new PhraseExpression("f")), new NotExpression(new PhraseExpression("e"))), List.of("0", "1", "2", "3"))
         );
     }
 
