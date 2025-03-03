@@ -6,13 +6,13 @@ import tokenizer.DocumentTokenizer;
 import java.util.*;
 import java.util.stream.Stream;
 
-public class MapIndex implements Index {
+public class MapInvertedIndex implements Index {
 
     private final Map<String, List<Integer>> index;
     private final String[] documentsMap;
     private final List<Integer> documentIds;
 
-    public MapIndex(List<Document> documents, DocumentTokenizer tokenizer) {
+    public MapInvertedIndex(List<Document> documents, DocumentTokenizer tokenizer) {
         index = new HashMap<>();
         documentsMap = new String[documents.size()];
         documentIds = Stream.iterate(0, x -> x < documents.size(), x -> x + 1).toList();

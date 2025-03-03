@@ -38,7 +38,7 @@ public class MatrixQueryExecutor implements QueryExecutor {
     }
 
     private boolean[] executeTerm(PhraseExpression e) {
-        boolean[] row = matrix.getDocumentsRow(e.getPhrase());
+        boolean[] row = matrix.getDocumentIds(e.getPhrase());
         return Arrays.copyOf(row, row.length);
     }
 

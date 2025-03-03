@@ -46,7 +46,7 @@ public class MapMatrix implements Matrix {
     }
 
     @Override
-    public boolean[] getDocumentsRow(String term) {
+    public boolean[] getDocumentIds(String term) {
         return matrix.getOrDefault(term, falseRow);
     }
 }

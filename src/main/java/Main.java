@@ -7,7 +7,7 @@ import expression.Expression;
 import parser.Parser;
 import parser.SyntaxException;
 import structure.Index;
-import structure.MapIndex;
+import structure.MapInvertedIndex;
 import structure.MapMatrix;
 import structure.Matrix;
 import tokenizer.DefaultTokenizer;
@@ -31,7 +31,7 @@ public class Main {
         MatrixQueryExecutor matrixQueryExecutor= new MatrixQueryExecutor(matrix);
 
         log("Building index...");
-        Index index = logExecutionTime(() -> new MapIndex(documents, tokenizer));
+        Index index = logExecutionTime(() -> new MapInvertedIndex(documents, tokenizer));
         IndexQueryExecutor indexQueryExecutor = new IndexQueryExecutor(index);
 
         while (true) {

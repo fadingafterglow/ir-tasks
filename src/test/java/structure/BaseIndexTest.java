@@ -1,47 +1,25 @@
 package structure;
 
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.junit.jupiter.params.provider.ValueSource;
-import tokenizer.DefaultTokenizer;
 
 import java.util.List;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class MapIndexTest extends BaseStructureTest {
+public abstract class BaseIndexTest<I extends Index> extends BaseSearchStructureTest<I> {
 
-    private static Index index;
-
-    @BeforeAll
-    public static void setUp() {
-        index = new MapIndex(documents, new DefaultTokenizer());
-    }
-
-    @Test
-    public void testDocumentsCount() {
-        assertEquals(5, index.documentsCount());
-    }
-
-    @Test
-    public void testTermsCount() {
-        assertEquals(10, index.termsCount());
-    }
-
-    @ParameterizedTest
-    @ValueSource(ints = {0, 1, 2, 3, 4})
-    public void testGetDocument(int id) {
-        assertEquals(String.valueOf(id), index.getDocument(id));
+    public BaseIndexTest(I searchStructure) {
+        super(searchStructure);
     }
 
     @ParameterizedTest
     @MethodSource
     public void testGetDocumentIds(String term, List<Integer> expected) {
-        assertEquals(expected, index.getDocumentIds(term));
+        assertEquals(expected, searchStructure.getDocumentIds(term));
 
     }
 
@@ -63,13 +41,13 @@ public class MapIndexTest extends BaseStructureTest {
 
     @Test
     public void testGetAllDocumentIds() {
-        assertEquals(List.of(0, 1, 2, 3, 4), index.getAllDocumentIds());
+        assertEquals(List.of(0, 1, 2, 3, 4), searchStructure.getAllDocumentIds());
     }
 
     @ParameterizedTest
     @MethodSource
     public void testGetDocumentFrequency(String term, int expected) {
-        assertEquals(expected, index.getDocumentFrequency(term));
+        assertEquals(expected, searchStructure.getDocumentFrequency(term));
     }
 
     public static Stream<Arguments> testGetDocumentFrequency() {

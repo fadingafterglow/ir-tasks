@@ -2,15 +2,7 @@ package structure;
 
 import java.util.List;
 
-public interface Index {
-    int documentsCount();
-
-    int termsCount();
-
-    String getDocument(int id);
-
-    List<Integer> getDocumentIds(String term);
-
+public interface Index extends SearchStructure<List<Integer>> {
     List<Integer> getAllDocumentIds();
 
     int getDocumentFrequency(String term);
