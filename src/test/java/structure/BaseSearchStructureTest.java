@@ -8,8 +8,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static utils.MocksFactory.*;
 
 public abstract class BaseSearchStructureTest<S extends SearchStructure<?>> {
     /*
@@ -25,11 +24,11 @@ public abstract class BaseSearchStructureTest<S extends SearchStructure<?>> {
         j: 2
     */
     protected final static List<Document> documents = List.of(
-            documentOf("0", "a D, f! H; i, a, d; H"),
-            documentOf("1", "a E' \"g h\" [a h]"),
-            documentOf("2", "a #b f&h j"),
-            documentOf("3", "b g h"),
-            documentOf("4", "h 'f c?! d (e) f h")
+            of("0", "a D, f! H; i, a, d; H"),
+            of("1", "a E' \"g h\" [a h] H"),
+            of("2", "a #b f&h j"),
+            of("3", "b h g"),
+            of("4", "h 'f c?! d (e) f h")
     );
 
     protected final S searchStructure;
@@ -52,12 +51,5 @@ public abstract class BaseSearchStructureTest<S extends SearchStructure<?>> {
     @ValueSource(ints = {0, 1, 2, 3, 4})
     public void testGetDocument(int id) {
         assertEquals(String.valueOf(id), searchStructure.getDocument(id));
-    }
-
-    protected static Document documentOf(String name, String body) {
-        Document document = mock(Document.class);
-        when(document.getName()).thenReturn(name);
-        when(document.getBody()).thenReturn(body);
-        return document;
     }
 }

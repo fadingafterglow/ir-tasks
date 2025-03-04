@@ -4,7 +4,9 @@ import document.Document;
 
 import java.util.List;
 
-public interface DocumentTokenizer {
+public interface Tokenizer {
+
+    List<String> tokenize(String string);
 
     List<String> tokenize(Document document);
 }

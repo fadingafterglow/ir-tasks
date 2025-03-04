@@ -1,7 +1,7 @@
 package structure;
 
 import document.Document;
-import tokenizer.DocumentTokenizer;
+import tokenizer.Tokenizer;
 
 import java.util.HashMap;
 import java.util.List;
@@ -9,11 +9,13 @@ import java.util.Map;
 
 public class MapMatrix implements Matrix {
 
+    private final Tokenizer tokenizer;
     private final Map<String, boolean[]> matrix;
     private final String[] documentsMap;
     private final boolean[] falseRow;
 
-    public MapMatrix(List<Document> documents, DocumentTokenizer tokenizer) {
+    public MapMatrix(List<Document> documents, Tokenizer tokenizer) {
+        this.tokenizer = tokenizer;
         matrix = new HashMap<>();
         documentsMap = new String[documents.size()];
         falseRow = new boolean[documents.size()];
@@ -48,5 +50,10 @@ public class MapMatrix implements Matrix {
     @Override
     public boolean[] getDocumentIds(String term) {
         return matrix.getOrDefault(term, falseRow);
+    }
+
+    @Override
+    public Tokenizer getTokenizer() {
+        return tokenizer;
     }
 }

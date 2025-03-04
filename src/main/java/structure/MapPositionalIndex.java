@@ -1,17 +1,19 @@
 package structure;
 
 import document.Document;
-import tokenizer.DocumentTokenizer;
+import tokenizer.Tokenizer;
 
 import java.util.*;
 import java.util.stream.Stream;
 
 public class MapPositionalIndex implements PositionalIndex {
+    private final Tokenizer tokenizer;
     private final Map<String, List<PositionalIndex.Entry>> index;
     private final String[] documentsMap;
     private final List<Integer> documentIds;
     
-    public MapPositionalIndex(List<Document> documents, DocumentTokenizer tokenizer) {
+    public MapPositionalIndex(List<Document> documents, Tokenizer tokenizer) {
+        this.tokenizer = tokenizer;
         index = new HashMap<>();
         documentsMap = new String[documents.size()];
         documentIds = Stream.iterate(0, x -> x < documents.size(), x -> x + 1).toList();
@@ -19,7 +21,7 @@ public class MapPositionalIndex implements PositionalIndex {
         computeIndex(pairs);
     }
 
-    private List<Triple> computeTriples(List<Document> documents, DocumentTokenizer tokenizer) {
+    private List<Triple> computeTriples(List<Document> documents, Tokenizer tokenizer) {
         List<Triple> triples = new ArrayList<>();
         for (int i = 0; i < documents.size(); i++) {
             Document document = documents.get(i);
@@ -76,6 +78,11 @@ public class MapPositionalIndex implements PositionalIndex {
     @Override
     public List<PositionalIndex.Entry> getPositions(String term) {
         return index.getOrDefault(term, List.of());
+    }
+
+    @Override
+    public Tokenizer getTokenizer() {
+        return tokenizer;
     }
 
     @Override

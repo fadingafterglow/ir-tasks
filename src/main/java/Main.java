@@ -11,7 +11,7 @@ import structure.MapInvertedIndex;
 import structure.MapMatrix;
 import structure.Matrix;
 import tokenizer.DefaultTokenizer;
-import tokenizer.DocumentTokenizer;
+import tokenizer.Tokenizer;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -24,7 +24,7 @@ public class Main {
 
     public static void main(String[] args) {
         List<Document> documents = loadDocuments();
-        DocumentTokenizer tokenizer = new DefaultTokenizer();
+        Tokenizer tokenizer = new DefaultTokenizer();
 
         log("Building matrix...");
         Matrix matrix = logExecutionTime(() -> new MapMatrix(documents, tokenizer));

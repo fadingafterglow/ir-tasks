@@ -1,26 +1,28 @@
 package structure;
 
 import document.Document;
-import tokenizer.DocumentTokenizer;
+import tokenizer.Tokenizer;
 
 import java.util.*;
 import java.util.stream.Stream;
 
 public class MapInvertedIndex implements Index {
 
+    private final Tokenizer tokenizer;
     private final Map<String, List<Integer>> index;
     private final String[] documentsMap;
     private final List<Integer> documentIds;
 
-    public MapInvertedIndex(List<Document> documents, DocumentTokenizer tokenizer) {
+    public MapInvertedIndex(List<Document> documents, Tokenizer tokenizer) {
+        this.tokenizer = tokenizer;
         index = new HashMap<>();
         documentsMap = new String[documents.size()];
         documentIds = Stream.iterate(0, x -> x < documents.size(), x -> x + 1).toList();
-        List<Pair> pairs = computePairs(documents, tokenizer);
+        List<Pair> pairs = computePairs(documents);
         computeIndex(pairs);
     }
 
-    private List<Pair> computePairs(List<Document> documents, DocumentTokenizer tokenizer) {
+    private List<Pair> computePairs(List<Document> documents) {
         List<Pair> pairs = new ArrayList<>();
         for (int i = 0; i < documents.size(); i++) {
             Document document = documents.get(i);
@@ -71,6 +73,11 @@ public class MapInvertedIndex implements Index {
     @Override
     public List<Integer> getDocumentIds(String term) {
         return index.getOrDefault(term, List.of());
+    }
+
+    @Override
+    public Tokenizer getTokenizer() {
+        return tokenizer;
     }
 
     @Override

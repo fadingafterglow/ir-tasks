@@ -1,6 +1,8 @@
 package executor;
 
 import structure.Index;
+import tokenizer.DefaultTokenizer;
+import tokenizer.Tokenizer;
 
 import java.util.List;
 
@@ -8,13 +10,14 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class IndexQueryExecutorTest extends BaseQueryExecutorTest {
+public class IndexQueryExecutorTest extends BaseQueryExecutorTest<IndexQueryExecutor> {
 
     public IndexQueryExecutorTest() {
         super(new IndexQueryExecutor(createIndex()));
     }
 
     private static Index createIndex() {
+        Tokenizer tokenizer = new DefaultTokenizer();
         Index index = mock(Index.class);
         when(index.documentsCount()).thenReturn(5);
         when(index.termsCount()).thenReturn(10);
@@ -42,6 +45,7 @@ public class IndexQueryExecutorTest extends BaseQueryExecutorTest {
         when(index.getDocumentFrequency("i")).thenReturn(1);
         when(index.getDocumentFrequency("j")).thenReturn(1);
         when(index.getDocumentFrequency("invalid")).thenReturn(0);
+        when(index.getTokenizer()).thenReturn(tokenizer);
         return index;
     }
 

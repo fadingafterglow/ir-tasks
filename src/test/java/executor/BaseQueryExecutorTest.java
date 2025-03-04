@@ -12,17 +12,17 @@ import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public abstract class BaseQueryExecutorTest {
+public abstract class BaseQueryExecutorTest<T extends QueryExecutor> {
 
-    protected final QueryExecutor executor;
+    protected final T executor;
 
-    public BaseQueryExecutorTest(QueryExecutor executor) {
+    public BaseQueryExecutorTest(T executor) {
         this.executor = executor;
     }
 
     @ParameterizedTest
     @MethodSources({
-            @MethodSource("testPhrase"),
+            @MethodSource("testSingleTermPhrase"),
             @MethodSource("testNot"),
             @MethodSource("testAnd"),
             @MethodSource("testOr"),
@@ -46,7 +46,7 @@ public abstract class BaseQueryExecutorTest {
         j: 2
      */
 
-    public static Stream<Arguments> testPhrase() {
+    public static Stream<Arguments> testSingleTermPhrase() {
         return Stream.of(
                 Arguments.of(new PhraseExpression("a"), List.of("0", "1", "2")),
                 Arguments.of(new PhraseExpression("b"), List.of("2", "3")),

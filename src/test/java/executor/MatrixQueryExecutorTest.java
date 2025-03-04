@@ -1,18 +1,21 @@
 package executor;
 
 import structure.Matrix;
+import tokenizer.DefaultTokenizer;
+import tokenizer.Tokenizer;
 
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class MatrixQueryExecutorTest extends BaseQueryExecutorTest {
+public class MatrixQueryExecutorTest extends BaseQueryExecutorTest<MatrixQueryExecutor> {
 
     public MatrixQueryExecutorTest() {
         super(new MatrixQueryExecutor(createMatrix()));
     }
 
     private static Matrix createMatrix() {
+        Tokenizer tokenizer = new DefaultTokenizer();
         Matrix matrix = mock(Matrix.class);
         when(matrix.documentsCount()).thenReturn(5);
         when(matrix.termsCount()).thenReturn(10);
@@ -28,6 +31,7 @@ public class MatrixQueryExecutorTest extends BaseQueryExecutorTest {
         when(matrix.getDocumentIds("i")).thenReturn(new boolean[]{true, false, false, false, false});
         when(matrix.getDocumentIds("j")).thenReturn(new boolean[]{false, false, true, false, false});
         when(matrix.getDocumentIds("invalid")).thenReturn(new boolean[]{false, false, false, false, false});
+        when(matrix.getTokenizer()).thenReturn(tokenizer);
         return matrix;
     }
 

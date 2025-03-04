@@ -5,12 +5,11 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import tokenizer.DefaultTokenizer;
 
-import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static utils.MocksFactory.*;
 
 public class MapPositionalIndexTest extends BaseIndexTest<MapPositionalIndex> {
 
@@ -32,47 +31,11 @@ public class MapPositionalIndexTest extends BaseIndexTest<MapPositionalIndex> {
                 Arguments.of("d", List.of(of(0, 1, 6), of(4, 3))),
                 Arguments.of("e", List.of(of(1, 1), of(4, 4))),
                 Arguments.of("f", List.of(of(0, 2), of(2, 2), of(4, 1, 5))),
-                Arguments.of("g", List.of(of(1, 2), of(3, 1))),
-                Arguments.of("h", List.of(of(0, 3, 7), of(1, 3, 5), of(2, 3), of(3, 2), of(4, 0, 6))),
+                Arguments.of("g", List.of(of(1, 2), of(3, 2))),
+                Arguments.of("h", List.of(of(0, 3, 7), of(1, 3, 5, 6), of(2, 3), of(3, 1), of(4, 0, 6))),
                 Arguments.of("i", List.of(of(0, 4))),
                 Arguments.of("j", List.of(of(2, 4))),
                 Arguments.of("invalid", List.of())
         );
-    }
-
-    private static PositionalIndex.Entry of(int documentId, Integer... positions) {
-        List<Integer> positionsList = Arrays.asList(positions);
-        return new PositionalIndex.Entry() {
-            @Override
-            public int getDocumentId() {
-                return documentId;
-            }
-
-            @Override
-            public int getTermFrequency() {
-                return positions.length;
-            }
-
-            @Override
-            public List<Integer> getPositions() {
-                return positionsList;
-            }
-
-            @Override
-            public String toString() {
-                return String.format("(%d: %s)", documentId, positionsList);
-            }
-
-            @Override
-            public boolean equals(Object o) {
-                if (!(o instanceof PositionalIndex.Entry entry)) return false;
-                return documentId == entry.getDocumentId() && Objects.equals(positionsList, entry.getPositions());
-            }
-
-            @Override
-            public int hashCode() {
-                return Objects.hash(documentId, positionsList);
-            }
-        };
     }
 }
