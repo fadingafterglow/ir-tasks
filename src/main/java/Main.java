@@ -1,10 +1,7 @@
 import document.Document;
 import document.PdfDocument;
 import document.TxtDocument;
-import executor.IndexQueryExecutor;
-import executor.MatrixQueryExecutor;
-import executor.PositionalIndexQueryExecutor;
-import executor.QueryExecutor;
+import executor.*;
 import expression.Expression;
 import parser.Parser;
 import parser.SyntaxException;
@@ -32,7 +29,7 @@ public class Main {
                 log("Executing query...");
                 displayResults(logExecutionTime(() -> queryExecutor.execute(expression)));
             }
-            catch (SyntaxException e) {
+            catch (Exception e) {
                 log("Syntax error: " + e.getMessage());
             }
         }
@@ -70,7 +67,7 @@ public class Main {
         List<Document> documents = loadDocuments();
         Tokenizer tokenizer = new DefaultTokenizer();
 
-        return switch (getOption(List.of("Matrix", "Inverted Index", "Positional Index"))) {
+        return switch (getOption(List.of("Matrix", "Inverted Index", "Biword index", "Positional Index"))) {
             case 0 -> {
                 log("Building matrix...");
                 Matrix matrix = logExecutionTime(() -> new MapMatrix(documents, tokenizer));
@@ -82,6 +79,11 @@ public class Main {
                 yield new IndexQueryExecutor(index);
             }
             case 2 -> {
+                log("Building biword index...");
+                BiWordIndex index = logExecutionTime(() -> new MapBiWordIndex(documents, tokenizer));
+                yield new BiWordIndexQueryExecutor(index);
+            }
+            case 3 -> {
                 log("Building positional index...");
                 PositionalIndex index = logExecutionTime(() -> new MapPositionalIndex(documents, tokenizer));
                 yield new PositionalIndexQueryExecutor(index);

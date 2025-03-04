@@ -16,14 +16,14 @@ class Query {
     }
 
     private String prepareQuery(String body) {
-        return REPLACE_PATTERN.matcher(body).replaceAll(mr ->
+        return REPLACE_PATTERN.matcher(body.trim()).replaceAll(mr ->
             switch (mr.group(1)) {
                 case "AND" -> "&";
                 case "OR" -> "|";
                 case "NOT" -> "!";
                 default -> mr.group(1);
             }
-        ).toLowerCase(Locale.ROOT).trim();
+        ).toLowerCase(Locale.ROOT);
     }
 
     public String getBody() {
