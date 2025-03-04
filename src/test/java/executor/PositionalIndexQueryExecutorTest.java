@@ -155,7 +155,8 @@ public class PositionalIndexQueryExecutorTest extends BaseQueryExecutorTest<Posi
                 Arguments.of(new Parser("f h /3/ f c /10/ d").parse(), List.of()),
                 Arguments.of(new Parser("f h i /2/ h").parse(), List.of()),
                 Arguments.of(new Parser("f h i /3/ h").parse(), List.of("0")),
-                Arguments.of(new Parser("h /5/ f h i").parse(), List.of("0"))
+                Arguments.of(new Parser("h /5/ f h i").parse(), List.of("0")),
+                Arguments.of(new Parser("a e /2/ g h /1/ a h").parse(), List.of("1"))
         );
     }
 
@@ -168,7 +169,8 @@ public class PositionalIndexQueryExecutorTest extends BaseQueryExecutorTest<Posi
                 Arguments.of(new Parser("g /1/ h AND a h").parse(), List.of("1")),
                 Arguments.of(new Parser("g /1/ h AND a h OR i").parse(), List.of("0", "1")),
                 Arguments.of(new Parser("NOT g /1/ h").parse(), List.of("0", "2", "4")),
-                Arguments.of(new Parser("NOT g /1/ h AND NOT f /2/ a").parse(), List.of("4"))
+                Arguments.of(new Parser("NOT g /1/ h AND NOT f /2/ a").parse(), List.of("4")),
+                Arguments.of(new Parser("NOT g h AND NOT f /2/ a").parse(), List.of("3", "4"))
         );
     }
 }

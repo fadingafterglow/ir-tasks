@@ -3,13 +3,12 @@ import document.PdfDocument;
 import document.TxtDocument;
 import executor.IndexQueryExecutor;
 import executor.MatrixQueryExecutor;
+import executor.PositionalIndexQueryExecutor;
+import executor.QueryExecutor;
 import expression.Expression;
 import parser.Parser;
 import parser.SyntaxException;
-import structure.Index;
-import structure.MapInvertedIndex;
-import structure.MapMatrix;
-import structure.Matrix;
+import structure.*;
 import tokenizer.DefaultTokenizer;
 import tokenizer.Tokenizer;
 
@@ -23,30 +22,18 @@ public class Main {
     private static final String DEFAULT_DOCUMENTS_DIRECTORY = "/Users/nick/Downloads/documents";
 
     public static void main(String[] args) {
-        List<Document> documents = loadDocuments();
-        Tokenizer tokenizer = new DefaultTokenizer();
-
-        log("Building matrix...");
-        Matrix matrix = logExecutionTime(() -> new MapMatrix(documents, tokenizer));
-        MatrixQueryExecutor matrixQueryExecutor= new MatrixQueryExecutor(matrix);
-
-        log("Building index...");
-        Index index = logExecutionTime(() -> new MapInvertedIndex(documents, tokenizer));
-        IndexQueryExecutor indexQueryExecutor = new IndexQueryExecutor(index);
-
+        QueryExecutor queryExecutor = createExecutor();
         while (true) {
             try {
                 String query = getLine("Enter a query (blank to exit): ", "");
                 if (query.isEmpty()) break;
                 log("Parsing query...");
                 Expression expression = logExecutionTime(() -> new Parser(query).parse());
-                log("Executing query with matrix...");
-                displayResults(logExecutionTime(() -> matrixQueryExecutor.execute(expression)));
-                log("Executing query with index...");
-                displayResults(logExecutionTime(() -> indexQueryExecutor.execute(expression)));
+                log("Executing query...");
+                displayResults(logExecutionTime(() -> queryExecutor.execute(expression)));
             }
             catch (SyntaxException e) {
-                System.out.println("Syntax error: " + e.getMessage());
+                log("Syntax error: " + e.getMessage());
             }
         }
     }
@@ -79,6 +66,30 @@ public class Main {
         }
     }
 
+    private static QueryExecutor createExecutor() {
+        List<Document> documents = loadDocuments();
+        Tokenizer tokenizer = new DefaultTokenizer();
+
+        return switch (getOption(List.of("Matrix", "Inverted Index", "Positional Index"))) {
+            case 0 -> {
+                log("Building matrix...");
+                Matrix matrix = logExecutionTime(() -> new MapMatrix(documents, tokenizer));
+                yield new MatrixQueryExecutor(matrix);
+            }
+            case 1 -> {
+                log("Building inverted index...");
+                Index index = logExecutionTime(() -> new MapInvertedIndex(documents, tokenizer));
+                yield new IndexQueryExecutor(index);
+            }
+            case 2 -> {
+                log("Building positional index...");
+                PositionalIndex index = logExecutionTime(() -> new MapPositionalIndex(documents, tokenizer));
+                yield new PositionalIndexQueryExecutor(index);
+            }
+            default -> throw new IllegalArgumentException("Invalid option");
+        };
+    }
+
     private static void displayResults(List<String> results) {
         if (results.isEmpty()) {
             System.out.println("No documents found");
@@ -86,6 +97,21 @@ public class Main {
             System.out.println("Found documents:");
             for (int i = 0; i < results.size(); i++)
                 System.out.println((i + 1) + ". " + results.get(i));
+        }
+    }
+
+    private static int getOption(List<String> names) {
+        while (true) {
+            System.out.print("Choose an option (");
+            for (int i = 0; i < names.size(); i++)
+                System.out.print(i + " - " + names.get(i) + (i == names.size() - 1 ? "): " : ", "));
+            try {
+                int option = Integer.parseInt(System.console().readLine());
+                if (option >= 0 && option < names.size())
+                    return option;
+            }
+            catch (NumberFormatException e) {/* ignore */}
+            System.out.println("Invalid option, try again");
         }
     }
 
