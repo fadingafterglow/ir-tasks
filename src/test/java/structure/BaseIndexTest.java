@@ -20,7 +20,6 @@ public abstract class BaseIndexTest<I extends Index> extends BaseSearchStructure
     @MethodSource
     public void testGetDocumentIds(String term, List<Integer> expected) {
         assertEquals(expected, searchStructure.getDocumentIds(term));
-
     }
 
     public static Stream<Arguments> testGetDocumentIds() {

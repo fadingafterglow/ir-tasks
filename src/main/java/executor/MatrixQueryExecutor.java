@@ -22,7 +22,7 @@ public class MatrixQueryExecutor implements QueryExecutor {
         boolean[] row = executeForRow(query);
         for (int i = 0; i < matrix.documentsCount(); i++) {
             if (row[i])
-                result.add(matrix.getDocument(i));
+                result.add(matrix.getDocumentName(i));
         }
         return result;
     }

@@ -21,7 +21,7 @@ public class IndexQueryExecutorTest extends BaseQueryExecutorTest<IndexQueryExec
         Index index = mock(Index.class);
         when(index.documentsCount()).thenReturn(5);
         when(index.termsCount()).thenReturn(10);
-        when(index.getDocument(anyInt())).thenAnswer(inv -> inv.getArgument(0).toString());
+        when(index.getDocumentName(anyInt())).thenAnswer(inv -> inv.getArgument(0).toString());
         when(index.getDocumentIds("a")).thenReturn(List.of(0, 1, 2));
         when(index.getDocumentIds("b")).thenReturn(List.of(2, 3));
         when(index.getDocumentIds("c")).thenReturn(List.of(4));

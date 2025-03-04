@@ -64,7 +64,7 @@ public class MapPositionalIndex implements PositionalIndex {
     }
     
     @Override
-    public String getDocument(int id) {
+    public String getDocumentName(int id) {
         if (id < 0 || id >= documentsMap.length)
             return null;
         return documentsMap[id];

@@ -49,7 +49,7 @@ public abstract class BaseSearchStructureTest<S extends SearchStructure<?>> {
 
     @ParameterizedTest
     @ValueSource(ints = {0, 1, 2, 3, 4})
-    public void testGetDocument(int id) {
-        assertEquals(String.valueOf(id), searchStructure.getDocument(id));
+    public void testGetDocumentName(int id) {
+        assertEquals(String.valueOf(id), searchStructure.getDocumentName(id));
     }
 }

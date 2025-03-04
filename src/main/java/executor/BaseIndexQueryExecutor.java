@@ -22,7 +22,7 @@ public abstract class BaseIndexQueryExecutor<T extends Index> implements QueryEx
     public List<String> execute(Expression query) {
         Map<Expression, Integer> estimation = new HashMap<>();
         estimate(query, estimation);
-        return executeForIds(query, estimation).stream().map(index::getDocument).toList();
+        return executeForIds(query, estimation).stream().map(index::getDocumentName).toList();
     }
 
     protected abstract void estimate(Expression query, Map<Expression, Integer> estimation);

@@ -41,7 +41,7 @@ public class MapMatrix implements Matrix {
     }
 
     @Override
-    public String getDocument(int id) {
+    public String getDocumentName(int id) {
         if (id < 0 || id >= documentsMap.length)
             return null;
         return documentsMap[id];

@@ -19,7 +19,7 @@ public class MatrixQueryExecutorTest extends BaseQueryExecutorTest<MatrixQueryEx
         Matrix matrix = mock(Matrix.class);
         when(matrix.documentsCount()).thenReturn(5);
         when(matrix.termsCount()).thenReturn(10);
-        when(matrix.getDocument(anyInt())).thenAnswer(inv -> inv.getArgument(0).toString());
+        when(matrix.getDocumentName(anyInt())).thenAnswer(inv -> inv.getArgument(0).toString());
         when(matrix.getDocumentIds("a")).thenReturn(new boolean[]{true, true, true, false, false});
         when(matrix.getDocumentIds("b")).thenReturn(new boolean[]{false, false, true, true, false});
         when(matrix.getDocumentIds("c")).thenReturn(new boolean[]{false, false, false, false, true});

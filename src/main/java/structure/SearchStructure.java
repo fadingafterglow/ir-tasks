@@ -7,7 +7,7 @@ public interface SearchStructure<T> {
 
     int termsCount();
 
-    String getDocument(int id);
+    String getDocumentName(int id);
 
     T getDocumentIds(String term);
 
