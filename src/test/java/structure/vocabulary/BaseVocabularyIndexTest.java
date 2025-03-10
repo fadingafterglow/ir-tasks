@@ -92,6 +92,8 @@ public abstract class BaseVocabularyIndexTest<V extends VocabularyIndex> {
         assertSame(Set.of(), vocabularyIndex.getTermIds("ir*re*re*"));
         assertSame(Set.of(10), vocabularyIndex.getTermIds("*g*"));
         assertSame(Set.of(), vocabularyIndex.getTermIds("*g*g*"));
+        assertSame(Set.of(), vocabularyIndex.getTermIds("ca*ca*ke"));
+        assertSame(Set.of(), vocabularyIndex.getTermIds("ca*ke*ke"));
     }
 
     private void assertSame(Set<Integer> expected, List<Integer> actual) {

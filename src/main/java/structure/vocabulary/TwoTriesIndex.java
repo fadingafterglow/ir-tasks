@@ -37,8 +37,7 @@ public class TwoTriesIndex extends BaseVocabularyIndex {
     }
 
     private List<Integer> handleNoWildcards(String termPattern) {
-        TermMapping termMapping = trie.search(termPattern);
-        return termMapping == null ? List.of() : List.of(termMapping.termId());
+        return map(trie.search(termPattern));
     }
 
     private List<Integer> handleOneWildcard(String[] parts) {

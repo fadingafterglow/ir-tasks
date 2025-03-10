@@ -12,6 +12,10 @@ public abstract class BaseVocabularyIndex implements VocabularyIndex {
         return termPattern.split("\\*", -1);
     }
 
+    protected List<Integer> map(TermMapping termMapping) {
+        return termMapping == null ? List.of() : List.of(termMapping.termId());
+    }
+
     protected List<Integer> map(List<TermMapping> termMappings) {
         return termMappings.stream().map(TermMapping::termId).toList();
     }
@@ -39,12 +43,12 @@ public abstract class BaseVocabularyIndex implements VocabularyIndex {
                 .toList();
     }
 
-    protected boolean matches(String term, String[] parts) {
+    private boolean matches(String term, String[] parts) {
         int index = 0;
-        for (int i = 1; i < parts.length - 1; i++) {
-            index = term.indexOf(parts[i], index);
+        for (String part : parts) {
+            index = term.indexOf(part, index);
             if (index == -1) return false;
-            index += parts[i].length();
+            index += part.length();
         }
         return true;
     }
