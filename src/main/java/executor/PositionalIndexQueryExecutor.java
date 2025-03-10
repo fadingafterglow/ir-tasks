@@ -52,15 +52,15 @@ public class PositionalIndexQueryExecutor extends BaseIndexQueryExecutor<Positio
 
     @Override
     protected List<Integer> executePhrase(PhraseExpression e) {
-        List<String> terms = index.getTokenizer().tokenize(e.getPhrase());
-        if (terms.size() == 1)
-            return index.getDocumentIds(terms.getFirst());
-        return executePhraseForPositions(terms).stream().map(PositionalResult::documentId).distinct().toList();
+        return executePhraseForPositions(e).stream().map(PositionalIntersectResult::getDocumentId).toList();
     }
 
-    protected List<PositionalResult> executePhraseForPositions(List<String> terms) {
-        List<PositionalResult> positions = phraseBeginningPositionalIntersect(index.getPositions(terms.get(0)), index.getPositions(terms.get(1)));
-        for (int i = 2; i < terms.size(); i++) {
+    protected List<PositionalIntersectResult> executePhraseForPositions(PhraseExpression e) {
+        List<String> terms = index.getTokenizer().tokenize(e.getPhrase());
+        List<PositionalIntersectResult> positions = index.getPositions(terms.getFirst()).stream()
+                .map(entry -> (PositionalIntersectResult) new PositionalIntersectResultAdapter(entry))
+                .toList();
+        for (int i = 1; i < terms.size(); i++) {
             if (positions.isEmpty()) break;
             positions = phrasePositionalIntersect(positions, index.getPositions(terms.get(i)));
         }
@@ -68,45 +68,32 @@ public class PositionalIndexQueryExecutor extends BaseIndexQueryExecutor<Positio
     }
 
     protected List<Integer> executeProximity(ProximityExpression e) {
-        return executeProximityForPositions(e).stream().map(PositionalResult::documentId).distinct().toList();
+        return executeProximityForPositions(e).stream().map(PositionalIntersectResult::getDocumentId).toList();
     }
 
-    protected List<PositionalResult> executeProximityForPositions(ProximityExpression e) {
+    protected List<PositionalIntersectResult> executeProximityForPositions(ProximityExpression e) {
         Expression left = e.getLeft();
         Expression right = e.getRight();
         int k = e.getProximity();
         if (left instanceof PhraseExpression l && right instanceof PhraseExpression r) {
-            List<String> lTerms = index.getTokenizer().tokenize(l.getPhrase());
-            List<String> rTerms = index.getTokenizer().tokenize(r.getPhrase());
-            if (lTerms.size() == 1 && rTerms.size() == 1)
-                return positionalIntersect1(index.getPositions(lTerms.getFirst()), index.getPositions(rTerms.getFirst()), k);
-            if (lTerms.size() == 1)
-                return positionalIntersect2(executePhraseForPositions(rTerms), index.getPositions(lTerms.getFirst()), k);
-            if (rTerms.size() == 1)
-                return positionalIntersect2(executePhraseForPositions(lTerms), index.getPositions(rTerms.getFirst()), k);
-            return positionalIntersect3(executePhraseForPositions(lTerms), executePhraseForPositions(rTerms), k);
+            return positionalIntersect(executePhraseForPositions(l), executePhraseForPositions(r), k);
         }
         if (left instanceof PhraseExpression l && right instanceof ProximityExpression r) {
-            List<String> lTerms = index.getTokenizer().tokenize(l.getPhrase());
-            if (lTerms.size() == 1)
-                return positionalIntersect2(executeProximityForPositions(r), index.getPositions(lTerms.getFirst()), k);
-            return positionalIntersect3(executePhraseForPositions(lTerms), executeProximityForPositions(r), k);
+            return positionalIntersect(executePhraseForPositions(l), executeProximityForPositions(r), k);
         }
         if (left instanceof ProximityExpression l && right instanceof PhraseExpression r) {
-            List<String> rTerms = index.getTokenizer().tokenize(r.getPhrase());
-            if (rTerms.size() == 1)
-                return positionalIntersect2(executeProximityForPositions(l), index.getPositions(rTerms.getFirst()), k);
-            return positionalIntersect3(executeProximityForPositions(l), executePhraseForPositions(rTerms), k);
+            return positionalIntersect(executeProximityForPositions(l), executePhraseForPositions(r), k);
         }
         throw new RuntimeException("Unsupported expression type: " + left.getClass() + " or " + right.getClass());
     }
 
-    protected List<PositionalResult> phraseBeginningPositionalIntersect(List<PositionalIndex.Entry> left, List<PositionalIndex.Entry> right) {
-        ArrayList<PositionalResult> result = new ArrayList<>();
+    protected List<PositionalIntersectResult> phrasePositionalIntersect(List<PositionalIntersectResult> left, List<PositionalIndex.Entry> right) {
+        ArrayList<PositionalIntersectResult> result = new ArrayList<>();
         int l = 0, r = 0;
         while (l < left.size() && r < right.size()) {
             if (left.get(l).getDocumentId() == right.get(r).getDocumentId()) {
-                phraseBeginningPositionalIntersect(left.get(l).getDocumentId(), left.get(l).getPositions(), right.get(r).getPositions(), result);
+                PositionalIntersectResult res = phrasePositionalIntersect(left.get(l), right.get(r).getPositions());
+                if (res.getPositionsCount() > 0) result.add(res);
                 l++;
                 r++;
             }
@@ -118,62 +105,31 @@ public class PositionalIndexQueryExecutor extends BaseIndexQueryExecutor<Positio
         return result;
     }
 
-    protected void phraseBeginningPositionalIntersect(int documentId, List<Integer> positionsLeft, List<Integer> positionsRight, List<PositionalResult> result) {
+    protected PositionalIntersectResult phrasePositionalIntersect(PositionalIntersectResult positionsLeft, List<Integer> positionsRight) {
+        PositionalIntersectResultImpl result = new PositionalIntersectResultImpl(positionsLeft.getDocumentId());
         int pl = 0, pr = 0;
-        while (pl < positionsLeft.size()) {
-            int positionLeft = positionsLeft.get(pl);
+        while (pl < positionsLeft.getPositionsCount()) {
+            MatchPosition positionLeft = positionsLeft.getPosition(pl);
             while (pr < positionsRight.size()) {
                 int positionRight = positionsRight.get(pr);
-                if (positionRight - positionLeft == 1)
-                    result.add(new PositionalResult(documentId, positionLeft, positionRight));
-                else if (positionRight > positionLeft)
+                if (positionRight - positionLeft.end() == 1)
+                    result.addPosition(positionLeft.start(), positionRight);
+                else if (positionRight > positionLeft.end())
                     break;
                 pr++;
             }
             pl++;
         }
-    }
-
-    protected List<PositionalResult> phrasePositionalIntersect(List<PositionalResult> left, List<PositionalIndex.Entry> right) {
-        ArrayList<PositionalResult> result = new ArrayList<>();
-        int l = 0, r = 0;
-        while (l < left.size() && r < right.size()) {
-            if (left.get(l).documentId() == right.get(r).getDocumentId()) {
-                l = phrasePositionalIntersect(left, l, right.get(r).getPositions(), result);
-                r++;
-            }
-            else if (left.get(l).documentId() < right.get(r).getDocumentId())
-                l++;
-            else
-                r++;
-        }
         return result;
     }
 
-    protected int phrasePositionalIntersect(List<PositionalResult> resultsLeft, int rl, List<Integer> positionsRight, List<PositionalResult> result) {
-        int pr = 0;
-        int documentId = resultsLeft.get(rl).documentId();
-        while (rl < resultsLeft.size() && resultsLeft.get(rl).documentId() == documentId) {
-            PositionalResult resultLeft = resultsLeft.get(rl);
-            while (pr < positionsRight.size()) {
-                int positionRight = positionsRight.get(pr);
-                if (positionRight - resultLeft.positionRight() == 1)
-                    result.add(new PositionalResult(documentId, resultLeft.positionLeft(), positionRight));
-                else if (positionRight > resultLeft.positionRight())
-                    break;
-                pr++;
-            }
-            rl++;
-        }
-        return rl;
-    }
-
-    protected List<PositionalResult> positionalIntersect1(List<PositionalIndex.Entry> left, List<PositionalIndex.Entry> right, int k) {
-        ArrayList<PositionalResult> result = new ArrayList<>();
+    protected List<PositionalIntersectResult> positionalIntersect(List<PositionalIntersectResult> left, List<PositionalIntersectResult> right, int k) {
+        ArrayList<PositionalIntersectResult> result = new ArrayList<>();
         int l = 0, r = 0;
         while (l < left.size() && r < right.size()) {
             if (left.get(l).getDocumentId() == right.get(r).getDocumentId()) {
-                positionalIntersect1(left.get(l).getDocumentId(), left.get(l).getPositions(), right.get(r).getPositions(), k, result);
+                PositionalIntersectResult res = positionalIntersect(left.get(l), right.get(r), k);
+                if (res.getPositionsCount() > 0) result.add(res);
                 l++;
                 r++;
             }
@@ -185,159 +141,116 @@ public class PositionalIndexQueryExecutor extends BaseIndexQueryExecutor<Positio
         return result;
     }
 
-    protected void positionalIntersect1(int documentId, List<Integer> positionsLeft, List<Integer> positionsRight, int k, List<PositionalResult> result) {
-        List<Integer> window = new LinkedList<>();
-        int pl = 0, pr = 0;
-        while (pl < positionsLeft.size()) {
-            int positionLeft = positionsLeft.get(pl);
-            while (pr < positionsRight.size()) {
-                int positionRight = positionsRight.get(pr);
-                int distance = positionRight - positionLeft;
-                if (distance != 0 && Math.abs(distance) <= k)
-                    window.add(positionRight);
-                else if (distance > k)
-                    break;
-                pr++;
-            }
-            while (!window.isEmpty() && positionLeft - window.getFirst() > k)
-                window.removeFirst();
-            for (int p : window)
-                if (positionLeft != p)
-                    result.add(new PositionalResult(documentId, positionLeft, p));
-            pl++;
-        }
-    }
-
-    protected List<PositionalResult> positionalIntersect2(List<PositionalResult> left, List<PositionalIndex.Entry> right, int k) {
-        ArrayList<PositionalResult> result = new ArrayList<>();
-        int l = 0, r = 0;
-        while (l < left.size() && r < right.size()) {
-            if (left.get(l).documentId() == right.get(r).getDocumentId()) {
-                l = positionalIntersect2(left, l, right.get(r).getPositions(), k, result);
-                r++;
-            }
-            else if (left.get(l).documentId() < right.get(r).getDocumentId())
-                l++;
-            else
-                r++;
-        }
-        Collections.sort(result);
-        return result;
-    }
-
-    protected int positionalIntersect2(List<PositionalResult> resultsLeft, int rl, List<Integer> positionsRight, int k, List<PositionalResult> result) {
-        List<Integer> leftWindow = new LinkedList<>();
-        List<Integer> rightWindow = new LinkedList<>();
-        int pr1 = 0, pr2 = 0;
-        int documentId = resultsLeft.get(rl).documentId();
-        while (rl < resultsLeft.size() && resultsLeft.get(rl).documentId() == documentId) {
-            PositionalResult resultLeft = resultsLeft.get(rl);
-            while (pr1 < positionsRight.size()) {
-                int positionRight = positionsRight.get(pr1);
-                int distanceLeft = resultLeft.minPosition() - positionRight;
+    protected PositionalIntersectResult positionalIntersect(PositionalIntersectResult positionsLeft, PositionalIntersectResult positionsRight, int k) {
+        PositionalIntersectResultImpl result = new PositionalIntersectResultImpl(positionsLeft.getDocumentId());
+        List<MatchPosition> leftWindow = new LinkedList<>();
+        List<MatchPosition> rightWindow = new LinkedList<>();
+        int pl = 0, pr1 = 0, pr2 = 0;
+        while (pl < positionsLeft.getPositionsCount()) {
+            MatchPosition positionLeft = positionsLeft.getPosition(pl);
+            while (pr1 < positionsRight.getPositionsCount()) {
+                MatchPosition positionRight = positionsRight.getPosition(pr1);
+                int distanceLeft = positionLeft.start() - positionRight.end();
                 if (distanceLeft > 0 && distanceLeft <= k)
                     leftWindow.add(positionRight);
                 else if (distanceLeft <= 0)
                     break;
                 pr1++;
             }
-            while (pr2 < positionsRight.size()) {
-                int positionRight = positionsRight.get(pr2);
-                int distanceRight = positionRight - resultLeft.maxPosition();
+            while (pr2 < positionsRight.getPositionsCount()) {
+                MatchPosition positionRight = positionsRight.getPosition(pr2);
+                int distanceRight = positionRight.start() - positionLeft.end();
                 if (distanceRight > 0 && distanceRight <= k)
                     rightWindow.add(positionRight);
                 else if (distanceRight > k)
                     break;
                 pr2++;
             }
-            while (!leftWindow.isEmpty() && resultLeft.minPosition() - leftWindow.getFirst() > k)
+            while (!leftWindow.isEmpty() && positionLeft.start() - leftWindow.getFirst().end() > k)
                 leftWindow.removeFirst();
-            while (!rightWindow.isEmpty() && rightWindow.getFirst() - resultLeft.maxPosition() <= 0)
+            while (!rightWindow.isEmpty() && rightWindow.getFirst().start() - positionLeft.end() <= 0)
                 rightWindow.removeFirst();
-            for (int p : leftWindow)
-                result.add(new PositionalResult(documentId, p, resultLeft.maxPosition()));
-            for (int p : rightWindow)
-                result.add(new PositionalResult(documentId, resultLeft.minPosition(), p));
-            rl++;
+            for (MatchPosition p : leftWindow)
+                result.addPosition(p.start(), positionLeft.end());
+            for (MatchPosition p : rightWindow)
+                result.addPosition(positionLeft.start(), p.end());
+            pl++;
         }
-        return rl;
-    }
-
-    protected List<PositionalResult> positionalIntersect3(List<PositionalResult> left, List<PositionalResult> right, int k) {
-        ArrayList<PositionalResult> result = new ArrayList<>();
-        int l = 0, r = 0;
-        while (l < left.size() && r < right.size()) {
-            if (left.get(l).documentId() == right.get(r).documentId()) {
-                int[] indexes = positionalIntersect3(left, l, right, r, k, result);
-                l = indexes[0];
-                r = indexes[1];
-            }
-            else if (left.get(l).documentId() < right.get(r).documentId())
-                l++;
-            else
-                r++;
-        }
-        Collections.sort(result);
+        result.sortPositions();
         return result;
     }
 
-    protected int[] positionalIntersect3(List<PositionalResult> resultsLeft, int rl, List<PositionalResult> resultsRight, int rr, int k, List<PositionalResult> result) {
-        List<PositionalResult> leftWindow = new LinkedList<>();
-        List<PositionalResult> rightWindow = new LinkedList<>();
-        int pr1 = rr, pr2 = rr;
-        int documentId = resultsLeft.get(rl).documentId();
-        while (rl < resultsLeft.size() && resultsLeft.get(rl).documentId() == documentId) {
-            PositionalResult resultLeft = resultsLeft.get(rl);
-            while (pr1 < resultsRight.size() && resultsRight.get(pr1).documentId() == documentId) {
-                PositionalResult resultRight = resultsRight.get(pr1);
-                int distanceLeft = resultLeft.minPosition() - resultRight.maxPosition();
-                if (distanceLeft > 0 && distanceLeft <= k)
-                    leftWindow.add(resultRight);
-                else if (distanceLeft <= 0)
-                    break;
-                pr1++;
-            }
-            while (pr2 < resultsRight.size() && resultsRight.get(pr2).documentId() == documentId) {
-                PositionalResult resultRight = resultsRight.get(pr2);
-                int distanceRight = resultRight.minPosition() - resultLeft.maxPosition();
-                if (distanceRight > 0 && distanceRight <= k)
-                    rightWindow.add(resultRight);
-                else if (distanceRight > k)
-                    break;
-                pr2++;
-            }
-            while (!leftWindow.isEmpty() && resultLeft.minPosition() - leftWindow.getFirst().maxPosition() > k)
-                leftWindow.removeFirst();
-            while (!rightWindow.isEmpty() && rightWindow.getFirst().minPosition() - resultLeft.maxPosition() <= 0)
-                rightWindow.removeFirst();
-            for (PositionalResult p : leftWindow)
-                result.add(new PositionalResult(documentId, p.minPosition(), resultLeft.maxPosition()));
-            for (PositionalResult p : rightWindow)
-                result.add(new PositionalResult(documentId, resultLeft.minPosition(), p.maxPosition()));
-            rl++;
-        }
-        return new int[] {rl, pr2};
+    protected interface PositionalIntersectResult {
+        int getDocumentId();
+        MatchPosition getPosition(int index);
+        int getPositionsCount();
     }
 
-    protected record PositionalResult(int documentId, int positionLeft, int positionRight) implements Comparable<PositionalResult> {
+    protected static class PositionalIntersectResultImpl implements PositionalIntersectResult {
 
-        public int minPosition() {
-            return Math.min(positionLeft, positionRight);
-        }
+        private final int documentId;
+        private final List<MatchPosition> positions;
 
-        public int maxPosition() {
-            return Math.max(positionLeft, positionRight);
+        public PositionalIntersectResultImpl(int documentId) {
+            this.documentId = documentId;
+            this.positions = new ArrayList<>();
         }
 
         @Override
-        public int compareTo(PositionalResult o) {
-            int documentIdComparison = Integer.compare(documentId, o.documentId);
-            if (documentIdComparison != 0)
-                return documentIdComparison;
-            int positionLeftComparison = Integer.compare(positionLeft, o.positionLeft);
-            if (positionLeftComparison != 0)
-                return positionLeftComparison;
-            return Integer.compare(positionRight, o.positionRight);
+        public int getDocumentId() {
+            return documentId;
+        }
+
+        @Override
+        public MatchPosition getPosition(int index) {
+            return positions.get(index);
+        }
+
+        @Override
+        public int getPositionsCount() {
+            return positions.size();
+        }
+
+        public void addPosition(int start, int end) {
+            positions.add(new MatchPosition(start, end));
+        }
+
+        public void sortPositions() {
+            positions.sort(MatchPosition::compareTo);
+        }
+    }
+
+    protected static class PositionalIntersectResultAdapter implements PositionalIntersectResult {
+
+        private final PositionalIndex.Entry entry;
+
+        public PositionalIntersectResultAdapter(PositionalIndex.Entry entry) {
+            this.entry = entry;
+        }
+
+        @Override
+        public int getDocumentId() {
+            return entry.getDocumentId();
+        }
+
+        @Override
+        public MatchPosition getPosition(int index) {
+            int position = entry.getPositions().get(index);
+            return new MatchPosition(position, position);
+        }
+
+        @Override
+        public int getPositionsCount() {
+            return entry.getTermFrequency();
+        }
+    }
+
+    protected record MatchPosition(int start, int end) implements Comparable<MatchPosition> {
+
+        @Override
+        public int compareTo(MatchPosition o) {
+            int startComparison = Integer.compare(start, o.start);
+            return startComparison != 0 ? startComparison : Integer.compare(end, o.end);
         }
     }
 }
