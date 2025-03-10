@@ -12,7 +12,15 @@ public class MapTrie<T> implements Trie<T> {
 
     @Override
     public void insert(String word, T value) {
-        requireNotBlank(word);
+        insert(word, value, true);
+    }
+
+    @Override
+    public T insertIfAbsent(String word, T value) {
+        return insert(word, value, false);
+    }
+
+    private T insert(String word, T value, boolean overwrite) {
         Node<T> previous = root;
         for (int i = 0; i < word.length(); i++) {
             char c = word.charAt(i);
@@ -20,11 +28,16 @@ public class MapTrie<T> implements Trie<T> {
             if (current == null)
                 current = previous.addChild(c);
             if (i == word.length() - 1) {
-                current.isEndOfWord = true;
-                current.value = value;
+                T old = current.value;
+                if (overwrite || !current.isEndOfWord) {
+                    current.isEndOfWord = true;
+                    current.value = value;
+                }
+                return old;
             }
             previous = current;
         }
+        throw new IllegalStateException("This should never happen");
     }
 
     @Override
@@ -66,11 +79,6 @@ public class MapTrie<T> implements Trie<T> {
             queue.addAll(current.getChildren());
         }
         return result;
-    }
-
-    private void requireNotBlank(String word) {
-        if (word == null || word.isBlank())
-            throw new IllegalArgumentException("Word cannot be blank");
     }
 
     private static class Node<T> {

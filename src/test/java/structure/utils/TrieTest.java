@@ -25,6 +25,20 @@ public class TrieTest {
     }
 
     @ParameterizedTest
+    @ValueSource(strings = {"hellooo", "hel", "cake", "owl"})
+    public void testSuccessfulInsertIfAbsent(String word) {
+        assertNull(trie.insertIfAbsent(word, "new"));
+        assertEquals("new", trie.search(word));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"hello", "hell", "helloo", "cat", "car", "root"})
+    public void testUnsuccessfulInsertIfAbsent(String word) {
+        assertEquals(word, trie.insertIfAbsent(word, "new"));
+        assertEquals(word, trie.search(word));
+    }
+
+    @ParameterizedTest
     @ValueSource(strings = {"hello", "hell", "helloo", "cat", "car", "root"})
     public void testSuccessfulSearch(String word) {
         assertEquals(word, trie.search(word));
