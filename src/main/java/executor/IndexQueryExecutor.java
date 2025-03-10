@@ -1,7 +1,7 @@
 package executor;
 
 import expression.*;
-import structure.Index;
+import structure.document.Index;
 
 import java.util.*;
 

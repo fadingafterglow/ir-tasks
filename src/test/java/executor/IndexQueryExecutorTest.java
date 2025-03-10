@@ -1,6 +1,6 @@
 package executor;
 
-import structure.Index;
+import structure.document.Index;
 import tokenizer.DefaultTokenizer;
 import tokenizer.Tokenizer;
 

@@ -8,7 +8,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.MethodSources;
 import parser.Parser;
-import structure.PositionalIndex;
+import structure.document.PositionalIndex;
 import tokenizer.DefaultTokenizer;
 import tokenizer.Tokenizer;
 

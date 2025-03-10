@@ -1,7 +1,7 @@
 package executor;
 
 import expression.*;
-import structure.PositionalIndex;
+import structure.document.PositionalIndex;
 
 import java.util.*;
 
@@ -75,15 +75,12 @@ public class PositionalIndexQueryExecutor extends BaseIndexQueryExecutor<Positio
         Expression left = e.getLeft();
         Expression right = e.getRight();
         int k = e.getProximity();
-        if (left instanceof PhraseExpression l && right instanceof PhraseExpression r) {
+        if (left instanceof PhraseExpression l && right instanceof PhraseExpression r)
             return positionalIntersect(executePhraseForPositions(l), executePhraseForPositions(r), k);
-        }
-        if (left instanceof PhraseExpression l && right instanceof ProximityExpression r) {
+        if (left instanceof PhraseExpression l && right instanceof ProximityExpression r)
             return positionalIntersect(executePhraseForPositions(l), executeProximityForPositions(r), k);
-        }
-        if (left instanceof ProximityExpression l && right instanceof PhraseExpression r) {
+        if (left instanceof ProximityExpression l && right instanceof PhraseExpression r)
             return positionalIntersect(executeProximityForPositions(l), executePhraseForPositions(r), k);
-        }
         throw new RuntimeException("Unsupported expression type: " + left.getClass() + " or " + right.getClass());
     }
 

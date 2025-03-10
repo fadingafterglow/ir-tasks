@@ -1,4 +1,4 @@
-package structure;
+package structure.document;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;

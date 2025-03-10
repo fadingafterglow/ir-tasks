@@ -8,7 +8,7 @@ import java.util.regex.Pattern;
 
 public class DefaultTokenizer implements Tokenizer {
 
-    private static final Pattern pattern = Pattern.compile("[^\\p{L}]+['-]|['-][^\\p{L}]+|[\\s,.?!;:\"“”‘’…/\\\\—–()\\[\\]{}&|№#$%*+=^]+");
+    private static final Pattern pattern = Pattern.compile("[^\\p{L}]+['-]|['-][^\\p{L}]+|[\\s,.?!;:\"“”‘’…/\\\\—–()\\[\\]{}&|№#$%+=^]+");
 
     @Override
     public List<String> tokenize(String string) {

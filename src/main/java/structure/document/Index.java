@@ -1,4 +1,4 @@
-package structure;
+package structure.document;
 
 import java.util.List;
 

@@ -4,8 +4,7 @@ import document.TxtDocument;
 import executor.*;
 import expression.Expression;
 import parser.Parser;
-import parser.SyntaxException;
-import structure.*;
+import structure.document.*;
 import tokenizer.DefaultTokenizer;
 import tokenizer.Tokenizer;
 

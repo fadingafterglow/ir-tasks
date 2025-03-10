@@ -1,4 +1,4 @@
-package structure;
+package structure.utils;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

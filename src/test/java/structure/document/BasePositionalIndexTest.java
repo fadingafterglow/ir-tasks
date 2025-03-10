@@ -1,20 +1,19 @@
-package structure;
+package structure.document;
 
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import tokenizer.DefaultTokenizer;
 
 import java.util.List;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static utils.MocksFactory.*;
+import static utils.MocksFactory.of;
 
-public class MapPositionalIndexTest extends BaseIndexTest<MapPositionalIndex> {
+public abstract class BasePositionalIndexTest<T extends PositionalIndex> extends BaseIndexTest<PositionalIndex> {
 
-    public MapPositionalIndexTest() {
-        super(new MapPositionalIndex(documents, new DefaultTokenizer()));
+    public BasePositionalIndexTest(T searchStructure) {
+        super(searchStructure);
     }
 
     @ParameterizedTest

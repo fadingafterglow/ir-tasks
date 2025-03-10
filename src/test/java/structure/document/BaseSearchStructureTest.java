@@ -1,4 +1,4 @@
-package structure;
+package structure.document;
 
 import document.Document;
 import org.junit.jupiter.api.Test;

@@ -1,6 +1,6 @@
 package executor;
 
-import structure.Matrix;
+import structure.document.Matrix;
 import tokenizer.DefaultTokenizer;
 import tokenizer.Tokenizer;
 

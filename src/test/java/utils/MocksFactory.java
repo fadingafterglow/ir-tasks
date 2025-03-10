@@ -1,7 +1,7 @@
 package utils;
 
 import document.Document;
-import structure.PositionalIndex;
+import structure.document.PositionalIndex;
 
 import java.util.Arrays;
 import java.util.List;

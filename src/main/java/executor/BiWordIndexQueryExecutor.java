@@ -1,7 +1,7 @@
 package executor;
 
 import expression.*;
-import structure.BiWordIndex;
+import structure.document.BiWordIndex;
 
 import java.util.ArrayList;
 import java.util.List;
