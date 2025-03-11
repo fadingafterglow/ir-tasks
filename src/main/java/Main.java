@@ -5,6 +5,10 @@ import executor.*;
 import expression.Expression;
 import parser.Parser;
 import structure.document.*;
+import structure.vocabulary.PermutermIndex;
+import structure.vocabulary.ThreeGramIndex;
+import structure.vocabulary.TwoTriesIndex;
+import structure.vocabulary.VocabularyIndex;
 import tokenizer.DefaultTokenizer;
 import tokenizer.Tokenizer;
 
@@ -22,7 +26,7 @@ public class Main {
         while (true) {
             try {
                 String query = getLine("Enter a query (blank to exit): ", "");
-                if (query.isEmpty()) break;
+                if (query.isBlank()) break;
                 log("Parsing query...");
                 Expression expression = logExecutionTime(() -> new Parser(query).parse());
                 log("Executing query...");
@@ -66,7 +70,7 @@ public class Main {
         List<Document> documents = loadDocuments();
         Tokenizer tokenizer = new DefaultTokenizer();
 
-        return switch (getOption(List.of("Matrix", "Inverted Index", "Biword index", "Positional Index"))) {
+        return switch (getOption(List.of("Matrix", "Inverted Index", "Biword index", "Positional Index", "Fuzzy Positional Index"))) {
             case 0 -> {
                 log("Building matrix...");
                 Matrix matrix = logExecutionTime(() -> new MapMatrix(documents, tokenizer));
@@ -87,6 +91,21 @@ public class Main {
                 PositionalIndex index = logExecutionTime(() -> new MapPositionalIndex(documents, tokenizer));
                 yield new PositionalIndexQueryExecutor(index);
             }
+            case 4 -> {
+                VocabularyIndex vocabularyIndex = createVocabularyIndex();
+                log("Building fuzzy positional index...");
+                FuzzyPositionalIndex index = logExecutionTime(() -> new FuzzyPositionalIndex(documents, tokenizer, vocabularyIndex));
+                yield new PositionalIndexQueryExecutor(index);
+            }
+            default -> throw new IllegalArgumentException("Invalid option");
+        };
+    }
+
+    private static VocabularyIndex createVocabularyIndex() {
+        return switch (getOption(List.of("Two Tries", "Permuterm", "3-gram"))) {
+            case 0 -> new TwoTriesIndex();
+            case 1 -> new PermutermIndex();
+            case 2 -> new ThreeGramIndex();
             default -> throw new IllegalArgumentException("Invalid option");
         };
     }
