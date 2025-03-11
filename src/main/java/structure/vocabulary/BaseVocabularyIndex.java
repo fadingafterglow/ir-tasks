@@ -1,10 +1,6 @@
 package structure.vocabulary;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.function.Function;
+import java.util.*;
 
 public abstract class BaseVocabularyIndex implements VocabularyIndex {
 
@@ -18,22 +14,6 @@ public abstract class BaseVocabularyIndex implements VocabularyIndex {
 
     protected List<Integer> map(List<TermMapping> termMappings) {
         return termMappings.stream().map(TermMapping::termId).toList();
-    }
-
-    protected <T> List<T> intersect(List<TermMapping> left, List<TermMapping> right, Function<TermMapping, T> mapper) {
-        if (left.size() > right.size())
-            return intersectHelper(right, left, mapper);
-        return intersectHelper(left, right, mapper);
-    }
-
-    private  <T> List<T> intersectHelper(List<TermMapping> smaller, List<TermMapping> bigger, Function<TermMapping, T> mapper) {
-        List<T> result = new ArrayList<>();
-        bigger.sort(Comparator.naturalOrder());
-        for (TermMapping t : smaller) {
-            if (Collections.binarySearch(bigger, t) >= 0)
-                result.add(mapper.apply(t));
-        }
-        return result;
     }
 
     protected List<Integer> filter(List<TermMapping> termMappings, String[] parts) {

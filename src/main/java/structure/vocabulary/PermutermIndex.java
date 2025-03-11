@@ -19,8 +19,8 @@ public class PermutermIndex extends BaseVocabularyIndex {
     @Override
     public int addTerm(String term) {
         List<String> rotations = rotate(term);
+        TermMapping current = new TermMapping(term, termsCount);
         for (String rotation : rotations) {
-            TermMapping current = new TermMapping(term, termsCount);
             TermMapping previous = trie.insertIfAbsent(rotation, current);
             if (previous != null) return previous.termId();
         }

@@ -3,6 +3,9 @@ package structure.vocabulary;
 import structure.utils.MapTrie;
 import structure.utils.Trie;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.function.Function;
 
@@ -65,5 +68,21 @@ public class TwoTriesIndex extends BaseVocabularyIndex {
 
     private String reverse(String term) {
         return new StringBuilder(term).reverse().toString();
+    }
+
+    private <T> List<T> intersect(List<TermMapping> left, List<TermMapping> right, Function<TermMapping, T> mapper) {
+        if (left.size() > right.size())
+            return intersectHelper(right, left, mapper);
+        return intersectHelper(left, right, mapper);
+    }
+
+    private <T> List<T> intersectHelper(List<TermMapping> smaller, List<TermMapping> bigger, Function<TermMapping, T> mapper) {
+        List<T> result = new ArrayList<>();
+        bigger.sort(Comparator.naturalOrder());
+        for (TermMapping t : smaller) {
+            if (Collections.binarySearch(bigger, t) >= 0)
+                result.add(mapper.apply(t));
+        }
+        return result;
     }
 }
