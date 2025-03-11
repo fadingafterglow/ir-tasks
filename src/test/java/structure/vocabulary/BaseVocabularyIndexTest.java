@@ -22,7 +22,8 @@ public abstract class BaseVocabularyIndexTest<V extends VocabularyIndex> {
             "hi",
             "irrelevant",
             "irreversible",
-            "ignorant"
+            "ignorant",
+            "comedydy"
     );
 
     protected final Supplier<V> vocabularyIndexSupplier;
@@ -61,7 +62,7 @@ public abstract class BaseVocabularyIndexTest<V extends VocabularyIndex> {
         assertSame(Set.of(4), vocabularyIndex.getTermIds("ca*e*"));
         assertSame(Set.of(9), vocabularyIndex.getTermIds("i*re*e"));
         assertSame(Set.of(8, 9), vocabularyIndex.getTermIds("i*re*e*"));
-        assertSame(Set.of(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10), vocabularyIndex.getTermIds("*"));
+        assertSame(Set.of(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11), vocabularyIndex.getTermIds("*"));
         assertSame(Set.of(0, 5, 6, 8, 9), vocabularyIndex.getTermIds("*l*"));
         assertSame(Set.of(5, 6), vocabularyIndex.getTermIds("*ll*"));
         assertSame(Set.of(8, 10), vocabularyIndex.getTermIds("i*nt"));
@@ -94,6 +95,7 @@ public abstract class BaseVocabularyIndexTest<V extends VocabularyIndex> {
         assertSame(Set.of(), vocabularyIndex.getTermIds("*g*g*"));
         assertSame(Set.of(), vocabularyIndex.getTermIds("ca*ca*ke"));
         assertSame(Set.of(), vocabularyIndex.getTermIds("ca*ke*ke"));
+        assertSame(Set.of(), vocabularyIndex.getTermIds("comedy"));
     }
 
     private void assertSame(Set<Integer> expected, List<Integer> actual) {

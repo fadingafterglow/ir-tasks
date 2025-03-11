@@ -24,13 +24,18 @@ public abstract class BaseVocabularyIndex implements VocabularyIndex {
     }
 
     private boolean matches(String term, String[] parts) {
-        int index = 0;
-        for (String part : parts) {
-            index = term.indexOf(part, index);
+        int index = term.indexOf(parts[0]);
+        if (index != 0) return false;
+        index += parts[0].length();
+        for (int i = 1; i < parts.length - 1; i++) {
+            index = term.indexOf(parts[i], index);
             if (index == -1) return false;
-            index += part.length();
+            index += parts[i].length();
         }
-        return true;
+        int suffixIndex = term.lastIndexOf(parts[parts.length - 1]);
+        if (suffixIndex < index && parts.length != 1) return false;
+        index = suffixIndex + parts[parts.length - 1].length();
+        return index == term.length();
     }
 
     protected record TermMapping(String term, int termId) implements Comparable<TermMapping> {

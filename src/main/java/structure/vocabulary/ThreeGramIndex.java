@@ -16,11 +16,11 @@ public class ThreeGramIndex extends BaseVocabularyIndex {
     public int addTerm(String term) {
         List<String> threeGrams = indexingThreeGrams(term);
         TermMapping current = new TermMapping(term, termsCount);
-        List<TermMapping> mappings = index.computeIfAbsent(threeGrams.getFirst(), k -> new ArrayList<>());
+        List<TermMapping> mappings = index.computeIfAbsent(threeGrams.getFirst(), _ -> new ArrayList<>());
         for (TermMapping mapping : mappings)
             if (mapping.term().equals(current.term())) return mapping.termId();
         for (String threeGram : threeGrams) {
-            mappings = index.computeIfAbsent(threeGram, k -> new ArrayList<>());
+            mappings = index.computeIfAbsent(threeGram, _ -> new ArrayList<>());
             mappings.add(current);
         }
         return termsCount++;
@@ -92,27 +92,6 @@ public class ThreeGramIndex extends BaseVocabularyIndex {
         return result;
     }
 
-    private List<TermMapping> intersect(List<TermMapping> left, List<TermMapping> right) {
-        List<TermMapping> result = new ArrayList<>();
-        int l = 0, r = 0;
-        while (l < left.size() && r < right.size()) {
-            TermMapping leftMapping = left.get(l);
-            int comparison = leftMapping.compareTo(right.get(r));
-            if (comparison == 0) {
-                result.add(leftMapping);
-                l++;
-                r++;
-            }
-            else if (comparison < 0) {
-                l++;
-            }
-            else {
-                r++;
-            }
-        }
-        return result;
-    }
-
     private List<TermMapping> union(List<TermMapping> left, List<TermMapping> right) {
         List<TermMapping> result = new ArrayList<>();
         int l = 0, r = 0;
@@ -136,6 +115,27 @@ public class ThreeGramIndex extends BaseVocabularyIndex {
         }
         while (l < left.size()) result.add(left.get(l++));
         while (r < right.size()) result.add(right.get(r++));
+        return result;
+    }
+
+    private List<TermMapping> intersect(List<TermMapping> left, List<TermMapping> right) {
+        List<TermMapping> result = new ArrayList<>();
+        int l = 0, r = 0;
+        while (l < left.size() && r < right.size()) {
+            TermMapping leftMapping = left.get(l);
+            int comparison = leftMapping.compareTo(right.get(r));
+            if (comparison == 0) {
+                result.add(leftMapping);
+                l++;
+                r++;
+            }
+            else if (comparison < 0) {
+                l++;
+            }
+            else {
+                r++;
+            }
+        }
         return result;
     }
 }
