@@ -3,7 +3,7 @@ package structure.document.disk;
 import document.Document;
 import tokenizer.Tokenizer;
 
-import java.util.List;
+import java.util.Collection;
 
 public interface Indexer {
 
@@ -11,5 +11,5 @@ public interface Indexer {
     String VOCABULARY_FILE_NAME = "vocabulary";
     String POSTINGS_FILE_NAME = "postings";
 
-    void index(List<Document> documents, Tokenizer tokenizer);
+    void index(Collection<Document> documents, Tokenizer tokenizer);
 }

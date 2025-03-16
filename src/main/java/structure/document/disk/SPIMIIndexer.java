@@ -17,7 +17,7 @@ public class SPIMIIndexer implements Indexer {
     private static final int MAX_NUMBER_OF_THREADS = 10;
     private static final String BLOCK_FILE_PREFIX = "block-";
     private final Path path;
-    private Map<String, Integer> documentsMap;
+    private Iterator<DocumentInfo> documentsIterator;
     private int blockId = 0;
 
     @SneakyThrows
@@ -27,43 +27,38 @@ public class SPIMIIndexer implements Indexer {
     }
 
     @Override
-    public void index(List<Document> documents, Tokenizer tokenizer) {
+    public void index(Collection<Document> documents, Tokenizer tokenizer) {
         if (documents.isEmpty()) return;
-        documentsMap = buildDocumentsMap(documents);
+        documentsIterator = buildDocumentsMap(documents);
         buildBlocks(documents, tokenizer);
         mergeBlocks();
         deleteBlocks();
     }
 
     @SneakyThrows
-    private Map<String, Integer> buildDocumentsMap(List<Document> documents) {
-        HashMap<String, Integer> map = new HashMap<>();
+    private Iterator<DocumentInfo> buildDocumentsMap(Collection<Document> documents) {
+        List<DocumentInfo> list = new ArrayList<>(documents.size());
         int id = 0;
         try (PrintWriter os = new PrintWriter(os(DOCUMENTS_MAP_FILE_NAME), false, StandardCharsets.UTF_8)) {
             for (Document document : documents) {
-                map.put(document.getName(), id);
+                list.add(new DocumentInfo(document, id++));
                 os.println(document.getName());
-                id++;
             }
         }
-        return map;
+        return list.iterator();
     }
 
     @SneakyThrows
-    private void buildBlocks(List<Document> documents, Tokenizer tokenizer) {
+    private void buildBlocks(Collection<Document> documents, Tokenizer tokenizer) {
         int numberOfThreads = Math.min(MAX_NUMBER_OF_THREADS, documents.size());
         long minMemoryThreshold = freeMemory() / (numberOfThreads + 1);
-        int splitSize = documents.size() / numberOfThreads;
         Thread[] threads = new Thread[numberOfThreads];
         for (int i = 0; i < numberOfThreads; i++) {
-            int from = i * splitSize;
-            int to = i == numberOfThreads - 1 ? documents.size() : (i + 1) * splitSize;
-            threads[i] = new InverterThread(documents.subList(from, to), tokenizer, minMemoryThreshold);
+            threads[i] = new InverterThread(tokenizer, minMemoryThreshold);
             threads[i].start();
         }
-        for (Thread thread : threads) {
+        for (Thread thread : threads)
             thread.join();
-        }
     }
 
     @SneakyThrows
@@ -135,8 +130,10 @@ public class SPIMIIndexer implements Indexer {
         return blockId++;
     }
 
-    private int getDocumentId(String documentName) {
-        return documentsMap.get(documentName);
+    private synchronized DocumentInfo nextDocument() {
+        if (documentsIterator.hasNext())
+            return documentsIterator.next();
+        return null;
     }
 
     private String path(String fileName) {
@@ -153,14 +150,15 @@ public class SPIMIIndexer implements Indexer {
         return new BufferedInputStream(new FileInputStream(path(fileName)));
     }
 
+    private record DocumentInfo(Document document, int id) {}
+
     private class InverterThread extends Thread {
 
-        private final Collection<Document> documents;
+        private static final int MIN_TERMS_PER_BLOCK = 10000;
         private final Tokenizer tokenizer;
         private final long minMemoryThreshold;
 
-        public InverterThread(Collection<Document> documents, Tokenizer tokenizer, long minMemoryThreshold) {
-            this.documents = documents;
+        public InverterThread(Tokenizer tokenizer, long minMemoryThreshold) {
             this.tokenizer = tokenizer;
             this.minMemoryThreshold = minMemoryThreshold;
         }
@@ -168,15 +166,17 @@ public class SPIMIIndexer implements Indexer {
         @Override
         public void run() {
             Map<String, List<Integer>> block = new HashMap<>();
-            for (Document document : documents) {
-                if (freeMemory() - document.getSize() < minMemoryThreshold) {
+            while (true) {
+                DocumentInfo documentInfo = nextDocument();
+                if (documentInfo == null) break;
+                if (freeMemory() - documentInfo.document().getSize() < minMemoryThreshold && block.size() >= MIN_TERMS_PER_BLOCK) {
                     flushBlock(block);
                     block = new HashMap<>();
                 }
-                int documentId = getDocumentId(document.getName());
-                Iterator<String> terms = tokenizer.tokenizeAsStream(document).iterator();
+                int documentId = documentInfo.id();
+                Iterator<String> terms = tokenizer.tokenizeAsStream(documentInfo.document()).iterator();
                 while (terms.hasNext()) {
-                    if (freeMemory() < minMemoryThreshold) {
+                    if (freeMemory() < minMemoryThreshold && block.size() >= MIN_TERMS_PER_BLOCK) {
                         flushBlock(block);
                         block = new HashMap<>();
                     }
@@ -186,7 +186,7 @@ public class SPIMIIndexer implements Indexer {
                         postingList.add(documentId);
                 }
             }
-            flushBlock(block);
+            if (!block.isEmpty()) flushBlock(block);
         }
 
         @SneakyThrows
