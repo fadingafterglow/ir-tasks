@@ -5,6 +5,8 @@ import executor.*;
 import expression.Expression;
 import parser.Parser;
 import structure.document.*;
+import structure.document.disk.SPIMIIndexer;
+import structure.document.memory.*;
 import structure.vocabulary.PermutermIndex;
 import structure.vocabulary.ThreeGramIndex;
 import structure.vocabulary.TwoTriesIndex;
@@ -20,8 +22,10 @@ import java.util.function.Supplier;
 
 public class Main {
     private static final String DEFAULT_DOCUMENTS_DIRECTORY = "/Users/nick/Downloads/documents";
+    private static final String DEFAULT_DISK_INDEX_DIRECTORY = "/Users/nick/Downloads/index";
 
     public static void main(String[] args) {
+        index();
         QueryExecutor queryExecutor = createExecutor();
         while (true) {
             try {
@@ -38,39 +42,26 @@ public class Main {
         }
     }
 
-    private static List<Document> loadDocuments() {
-        List<Document> documents = new ArrayList<>();
-        while (documents.isEmpty()) {
-            String path = getLine("Enter a path to a document or a directory with documents (blank for default): ", DEFAULT_DOCUMENTS_DIRECTORY);
-            addDocument(new File(path), documents);
-        }
-        System.out.println("Size of documents: " + documents.stream().mapToLong(Document::getSize).sum() + " bytes");
-        return documents;
-    }
-
-    private static void addDocument(File file, List<Document> documents) {
-        if (file.isDirectory())
-            Arrays.asList(file.listFiles()).forEach(f -> addDocument(f, documents));
-        else {
-            String name = file.getName();
-            if (!file.exists()) {
-                System.out.println("File \"" + name + "\" does not exist");
-                return;
-            }
-            if (name.endsWith(TxtDocument.TXT_EXTENSION))
-                documents.add(new TxtDocument(file.toPath()));
-            else if (name.endsWith(PdfDocument.PDF_EXTENSION))
-                documents.add(new PdfDocument(file.toPath()));
-            else
-                System.out.println("Unsupported file type: " + name);
-        }
+    private static void index() {
+        if (getOption("Continue", "Index documents") != 1) return;
+        String indexDirectory = getLine("Enter a path to the disk index directory (blank for default): ", DEFAULT_DISK_INDEX_DIRECTORY);
+        List<Document> documents = loadDocuments();
+        SPIMIIndexer indexer = new SPIMIIndexer(indexDirectory);
+        logExecutionTime(() -> indexer.index(documents, new DefaultTokenizer()));
     }
 
     private static QueryExecutor createExecutor() {
-        List<Document> documents = loadDocuments();
         Tokenizer tokenizer = new DefaultTokenizer();
+        return switch (getOption("Use in-memory index", "Use on-disk index")) {
+            case 0 -> executorForInMemoryIndex(tokenizer);
+            case 1 -> executorForOnDiskIndex(tokenizer);
+            default -> throw new IllegalArgumentException("Invalid option");
+        };
+    }
 
-        return switch (getOption(List.of("Matrix", "Inverted Index", "Biword index", "Positional Index", "Fuzzy Positional Index"))) {
+    private static QueryExecutor executorForInMemoryIndex(Tokenizer tokenizer) {
+        List<Document> documents = loadDocuments();
+        return switch (getOption("Matrix", "Inverted Index", "Biword index", "Positional Index", "Fuzzy Positional Index")) {
             case 0 -> {
                 log("Building matrix...");
                 Matrix matrix = logExecutionTime(() -> new MapMatrix(documents, tokenizer));
@@ -101,8 +92,48 @@ public class Main {
         };
     }
 
+    private static QueryExecutor executorForOnDiskIndex(Tokenizer tokenizer) {
+        String indexDirectory = getLine("Enter a path to the disk index directory (blank for default): ", DEFAULT_DISK_INDEX_DIRECTORY);
+        return switch (getOption("Inverted Index")) {
+            case 0 -> {
+                log("Loading disk index...");
+                // todo
+                yield new IndexQueryExecutor(null);
+            }
+            default -> throw new IllegalArgumentException("Invalid option");
+        };
+    }
+
+    private static List<Document> loadDocuments() {
+        List<Document> documents = new ArrayList<>();
+        while (documents.isEmpty()) {
+            String path = getLine("Enter a path to a document or a directory with documents (blank for default): ", DEFAULT_DOCUMENTS_DIRECTORY);
+            addDocument(new File(path), documents);
+        }
+        System.out.println("Size of documents: " + documents.stream().mapToLong(Document::getSize).sum() + " bytes");
+        return documents;
+    }
+
+    private static void addDocument(File file, List<Document> documents) {
+        if (file.isDirectory())
+            Arrays.asList(file.listFiles()).forEach(f -> addDocument(f, documents));
+        else {
+            String name = file.getName();
+            if (!file.exists()) {
+                System.out.println("File \"" + name + "\" does not exist");
+                return;
+            }
+            if (name.endsWith(TxtDocument.TXT_EXTENSION))
+                documents.add(new TxtDocument(file.toPath()));
+            else if (name.endsWith(PdfDocument.PDF_EXTENSION))
+                documents.add(new PdfDocument(file.toPath()));
+            else
+                System.out.println("Unsupported file type: " + name);
+        }
+    }
+
     private static VocabularyIndex createVocabularyIndex() {
-        return switch (getOption(List.of("Two Tries", "Permuterm", "3-gram"))) {
+        return switch (getOption("Two Tries", "Permuterm", "3-gram")) {
             case 0 -> new TwoTriesIndex();
             case 1 -> new PermutermIndex();
             case 2 -> new ThreeGramIndex();
@@ -120,14 +151,14 @@ public class Main {
         }
     }
 
-    private static int getOption(List<String> names) {
+    private static int getOption(String... names) {
         while (true) {
             System.out.print("Choose an option (");
-            for (int i = 0; i < names.size(); i++)
-                System.out.print(i + " - " + names.get(i) + (i == names.size() - 1 ? "): " : ", "));
+            for (int i = 0; i < names.length; i++)
+                System.out.print(i + " - " + names[i] + (i == names.length- 1 ? "): " : ", "));
             try {
                 int option = Integer.parseInt(System.console().readLine());
-                if (option >= 0 && option < names.size())
+                if (option >= 0 && option < names.length)
                     return option;
             }
             catch (NumberFormatException e) {/* ignore */}
@@ -154,5 +185,11 @@ public class Main {
         T result = action.get();
         System.out.println("Execution time: " + (System.currentTimeMillis() - start) + " ms");
         return result;
+    }
+
+    private static void logExecutionTime(Runnable action) {
+        long start = System.currentTimeMillis();
+        action.run();
+        System.out.println("Execution time: " + (System.currentTimeMillis() - start) + " ms");
     }
 }

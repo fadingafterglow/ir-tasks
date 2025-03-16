@@ -1,5 +1,6 @@
-package structure.document;
+package structure.document.indexes;
 
+import structure.document.memory.MapInvertedIndex;
 import tokenizer.DefaultTokenizer;
 
 public class MapInvertedIndexTest extends BaseIndexTest<MapInvertedIndex> {

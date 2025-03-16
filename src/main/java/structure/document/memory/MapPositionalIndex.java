@@ -1,6 +1,7 @@
-package structure.document;
+package structure.document.memory;
 
 import document.Document;
+import structure.document.PositionalIndex;
 import tokenizer.Tokenizer;
 
 import java.util.*;

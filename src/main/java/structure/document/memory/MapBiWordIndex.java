@@ -1,22 +1,24 @@
-package structure.document;
+package structure.document.memory;
 
 import document.Document;
+import structure.document.BiWordIndex;
 import tokenizer.Tokenizer;
 
 import java.util.*;
 import java.util.stream.Stream;
 
-public class MapInvertedIndex implements Index {
+public class MapBiWordIndex implements BiWordIndex {
 
+    private static final String SEPARATOR = " ";
     private final Tokenizer tokenizer;
     private final Map<String, List<Integer>> index;
-    private final String[] documentsMap;
+    private final DocumentMapEntry[] documentsMap;
     private final List<Integer> documentIds;
 
-    public MapInvertedIndex(List<Document> documents, Tokenizer tokenizer) {
+    public MapBiWordIndex(List<Document> documents, Tokenizer tokenizer) {
         this.tokenizer = tokenizer;
         index = new HashMap<>();
-        documentsMap = new String[documents.size()];
+        documentsMap = new DocumentMapEntry[documents.size()];
         documentIds = Stream.iterate(0, x -> x < documents.size(), x -> x + 1).toList();
         List<Pair> pairs = computePairs(documents);
         computeIndex(pairs);
@@ -26,29 +28,33 @@ public class MapInvertedIndex implements Index {
         List<Pair> pairs = new ArrayList<>();
         for (int i = 0; i < documents.size(); i++) {
             Document document = documents.get(i);
-            documentsMap[i] = document.getName();
             List<String> terms = tokenizer.tokenize(document);
-            for (String term : terms)
-                pairs.add(new Pair(term, i));
+            documentsMap[i] = new DocumentMapEntry(document.getName(), String.join(SEPARATOR, terms));
+            for (int j = 1; j < terms.size(); j++) {
+                String previous = terms.get(j - 1);
+                pairs.add(new Pair(previous, i));
+                pairs.add(new Pair(previous + SEPARATOR + terms.get(j), i));
+            }
+            pairs.add(new Pair(terms.getLast(), i));
         }
         return pairs;
     }
 
     private void computeIndex(List<Pair> pairs) {
         if (pairs.isEmpty()) return;
-        pairs.sort(Comparator.naturalOrder());
-        String term = pairs.getFirst().term;
+        Collections.sort(pairs);
+        String term = pairs.getFirst().term();
         List<Integer> ids = new ArrayList<>();
-        ids.add(pairs.getFirst().documentId);
+        ids.add(pairs.getFirst().documentId());
         for (Pair p: pairs.subList(1, pairs.size())) {
-            if (!term.equals(p.term)) {
+            if (!term.equals(p.term())) {
                 index.put(term, ids);
-                term = p.term;
+                term = p.term();
                 ids = new ArrayList<>();
-                ids.add(p.documentId);
+                ids.add(p.documentId());
             }
-            else if (!ids.getLast().equals(p.documentId))
-                ids.add(p.documentId);
+            else if (!ids.getLast().equals(p.documentId()))
+                ids.add(p.documentId());
         }
         index.put(term, ids);
     }
@@ -67,7 +73,14 @@ public class MapInvertedIndex implements Index {
     public String getDocumentName(int id) {
         if (id < 0 || id >= documentsMap.length)
             return null;
-        return documentsMap[id];
+        return documentsMap[id].documentName();
+    }
+
+    @Override
+    public String getProcessedDocument(int id) {
+        if (id < 0 || id >= documentsMap.length)
+            return null;
+        return documentsMap[id].documentBody();
     }
 
     @Override
@@ -90,11 +103,18 @@ public class MapInvertedIndex implements Index {
         return getDocumentIds(term).size();
     }
 
+    @Override
+    public String getSeparator() {
+        return SEPARATOR;
+    }
+
     private record Pair(String term, int documentId) implements Comparable<Pair> {
         @Override
         public int compareTo(Pair o) {
-            int termCompare = term.compareTo(o.term);
-            return termCompare != 0 ? termCompare : Integer.compare(documentId, o.documentId);
+            return term.compareTo(o.term);
         }
+    }
+
+    private record DocumentMapEntry(String documentName, String documentBody) {
     }
 }
