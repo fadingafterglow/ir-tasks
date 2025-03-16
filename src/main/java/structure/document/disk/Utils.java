@@ -68,6 +68,10 @@ public abstract class Utils {
     }
 
     public static String bytesToString(byte[] bytes) {
-        return new String(bytes, StandardCharsets.UTF_8);
+        return bytesToString(bytes, 0, bytes.length);
+    }
+
+    public static String bytesToString(byte[] bytes, int offset, int length) {
+        return new String(bytes, offset, length, StandardCharsets.UTF_8);
     }
 }

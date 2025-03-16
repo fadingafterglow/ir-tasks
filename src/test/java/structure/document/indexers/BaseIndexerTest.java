@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertIterableEquals;
 import static utils.MocksFactory.of;
 
 public abstract class BaseIndexerTest<I extends Indexer> {
@@ -32,12 +33,12 @@ public abstract class BaseIndexerTest<I extends Indexer> {
     @Test
     public void testIndex() throws Exception {
         indexer.index(documents, new DefaultTokenizer());
-        assertArrayEquals(expectedDocumentsMap(), Files.readAllBytes(directory.resolve(Indexer.DOCUMENTS_MAP_FILE_NAME)));
+        assertIterableEquals(expectedDocumentsMap(), Files.readAllLines(directory.resolve(Indexer.DOCUMENTS_MAP_FILE_NAME)));
         assertArrayEquals(expectedVocabulary(), Files.readAllBytes(directory.resolve(Indexer.VOCABULARY_FILE_NAME)));
         assertArrayEquals(expectedPostings(), Files.readAllBytes(directory.resolve(Indexer.POSTINGS_FILE_NAME)));
     }
 
-    protected abstract byte[] expectedDocumentsMap();
+    protected abstract List<String> expectedDocumentsMap();
 
     protected abstract byte[] expectedVocabulary();
 

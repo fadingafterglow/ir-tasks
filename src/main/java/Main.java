@@ -6,6 +6,7 @@ import expression.Expression;
 import parser.Parser;
 import structure.document.*;
 import structure.document.disk.SPIMIIndexer;
+import structure.document.disk.UncompressedInvertedIndex;
 import structure.document.memory.*;
 import structure.vocabulary.PermutermIndex;
 import structure.vocabulary.ThreeGramIndex;
@@ -15,6 +16,7 @@ import tokenizer.DefaultTokenizer;
 import tokenizer.Tokenizer;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -97,8 +99,8 @@ public class Main {
         return switch (getOption("Inverted Index")) {
             case 0 -> {
                 log("Loading disk index...");
-                // todo
-                yield new IndexQueryExecutor(null);
+                UncompressedInvertedIndex index = logExecutionTime(() -> new UncompressedInvertedIndex(Path.of(indexDirectory), tokenizer));
+                yield new IndexQueryExecutor(index);
             }
             default -> throw new IllegalArgumentException("Invalid option");
         };

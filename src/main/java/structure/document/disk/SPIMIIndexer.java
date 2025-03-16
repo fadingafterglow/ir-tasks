@@ -5,6 +5,7 @@ import lombok.SneakyThrows;
 import tokenizer.Tokenizer;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -38,13 +39,10 @@ public class SPIMIIndexer implements Indexer {
     private Map<String, Integer> buildDocumentsMap(List<Document> documents) {
         HashMap<String, Integer> map = new HashMap<>();
         int id = 0;
-        byte[] intBuffer = new byte[4];
-        try (BufferedOutputStream os = os(DOCUMENTS_MAP_FILE_NAME)) {
+        try (PrintWriter os = new PrintWriter(os(DOCUMENTS_MAP_FILE_NAME), false, StandardCharsets.UTF_8)) {
             for (Document document : documents) {
                 map.put(document.getName(), id);
-                os.write(intToBytes(document.getName().length(), intBuffer));
-                os.write(stringToBytes(document.getName()));
-                os.write(intToBytes(id, intBuffer));
+                os.println(document.getName());
                 id++;
             }
         }
@@ -93,13 +91,13 @@ public class SPIMIIndexer implements Indexer {
                 }
                 if (block.advance()) queue.add(block);
                 else block.close();
-                osPostings.write(intToBytes(documentIds.size(), intBuffer));
                 for (int documentId : documentIds)
                     osPostings.write(intToBytes(documentId, intBuffer));
-                osVocabulary.write(intToBytes(term.length(), intBuffer));
-                osVocabulary.write(stringToBytes(term));
+                byte[] termBytes = stringToBytes(term);
+                osVocabulary.write(intToBytes(termBytes.length, intBuffer));
+                osVocabulary.write(termBytes);
                 osVocabulary.write(longToBytes(position, longBuffer));
-                position += 4 + 4L * documentIds.size();
+                position += 4L * documentIds.size();
             }
         }
     }
