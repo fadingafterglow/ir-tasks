@@ -18,7 +18,7 @@ public class SPIMIIndexer implements Indexer {
     private static final String BLOCK_FILE_PREFIX = "block-";
     private final Path path;
     private Iterator<DocumentInfo> documentsIterator;
-    private int blockId = 0;
+    private int blockId;
 
     @SneakyThrows
     public SPIMIIndexer(String path) {
@@ -29,14 +29,15 @@ public class SPIMIIndexer implements Indexer {
     @Override
     public void index(Collection<Document> documents, Tokenizer tokenizer) {
         if (documents.isEmpty()) return;
-        documentsIterator = buildDocumentsMap(documents);
+        buildDocumentsMap(documents);
         buildBlocks(documents, tokenizer);
         mergeBlocks();
         deleteBlocks();
+        reset();
     }
 
     @SneakyThrows
-    private Iterator<DocumentInfo> buildDocumentsMap(Collection<Document> documents) {
+    private void buildDocumentsMap(Collection<Document> documents) {
         List<DocumentInfo> list = new ArrayList<>(documents.size());
         int id = 0;
         try (PrintWriter os = new PrintWriter(os(DOCUMENTS_MAP_FILE_NAME), false, StandardCharsets.UTF_8)) {
@@ -45,7 +46,7 @@ public class SPIMIIndexer implements Indexer {
                 os.println(document.getName());
             }
         }
-        return list.iterator();
+        documentsIterator = list.iterator();
     }
 
     @SneakyThrows
@@ -63,12 +64,7 @@ public class SPIMIIndexer implements Indexer {
 
     @SneakyThrows
     private void mergeBlocks() {
-        PriorityQueue<Block> queue = new PriorityQueue<>();
-        for (int i = 0; i < blockId; i++) {
-            Block block = new Block(BLOCK_FILE_PREFIX + i);
-            if (block.advance()) queue.add(block);
-            else block.close();
-        }
+        PriorityQueue<Block> queue = initBlockQueue();
         long position = 0;
         try (BufferedOutputStream osPostings = os(POSTINGS_FILE_NAME);
              BufferedOutputStream osVocabulary = os(VOCABULARY_FILE_NAME)) {
@@ -77,10 +73,10 @@ public class SPIMIIndexer implements Indexer {
             while (!queue.isEmpty()) {
                 Block block = queue.poll();
                 String term = block.currentTerm();
-                List<Integer> documentIds = block.currentDocumentIds();
+                LinkedList<Integer> documentIds = new LinkedList<>(block.currentDocumentIds());
                 while (!queue.isEmpty() && queue.peek().currentTerm().equals(term)) {
                     Block nextBlock = queue.poll();
-                    documentIds = merge(documentIds, nextBlock.currentDocumentIds());
+                    merge(documentIds, nextBlock.currentDocumentIds());
                     if (nextBlock.advance()) queue.add(nextBlock);
                     else nextBlock.close();
                 }
@@ -97,33 +93,42 @@ public class SPIMIIndexer implements Indexer {
         }
     }
 
+    private PriorityQueue<Block> initBlockQueue() {
+        PriorityQueue<Block> queue = new PriorityQueue<>();
+        for (int i = 0; i < blockId; i++) {
+            Block block = new Block(BLOCK_FILE_PREFIX + i);
+            if (block.advance()) queue.add(block);
+            else block.close();
+        }
+        return queue;
+    }
+
+    private void merge(LinkedList<Integer> left, List<Integer> right) {
+        ListIterator<Integer> leftIterator = left.listIterator();
+        outer:
+        for (int rightId : right) {
+            while (leftIterator.hasNext()) {
+                int leftId = leftIterator.next();
+                if (leftId == rightId)
+                    continue outer;
+                else if (leftId > rightId) {
+                    leftIterator.previous();
+                    break;
+                }
+            }
+            leftIterator.add(rightId);
+        }
+    }
+
     @SneakyThrows
     private void deleteBlocks() {
         for (int i = 0; i < blockId; i++)
             Files.delete(Path.of(path(BLOCK_FILE_PREFIX + i)));
     }
 
-    private List<Integer> merge(List<Integer> left, List<Integer> right) {
-        List<Integer> result = new ArrayList<>();
-        int l = 0, r = 0;
-        while (l < left.size() && r < right.size()) {
-            if (left.get(l).equals(right.get(r))) {
-                result.add(left.get(l));
-                l++;
-                r++;
-            } else if (left.get(l) < right.get(r)) {
-                result.add(left.get(l));
-                l++;
-            } else {
-                result.add(right.get(r));
-                r++;
-            }
-        }
-        while (l < left.size())
-            result.add(left.get(l++));
-        while (r < right.size())
-            result.add(right.get(r++));
-        return result;
+    private void reset() {
+        documentsIterator = null;
+        blockId = 0;
     }
 
     private synchronized int nextBlockId() {
@@ -154,13 +159,14 @@ public class SPIMIIndexer implements Indexer {
 
     private class InverterThread extends Thread {
 
-        private static final int MIN_TERMS_PER_BLOCK = 10000;
+        private static final int MIN_TERMS_PER_BLOCK = 100000;
+        private static final int AVERAGE_TERM_SIZE = 10;
         private final Tokenizer tokenizer;
         private final long minMemoryThreshold;
 
         public InverterThread(Tokenizer tokenizer, long minMemoryThreshold) {
             this.tokenizer = tokenizer;
-            this.minMemoryThreshold = minMemoryThreshold;
+            this.minMemoryThreshold = minMemoryThreshold - MIN_TERMS_PER_BLOCK * AVERAGE_TERM_SIZE;
         }
 
         @Override
@@ -176,10 +182,6 @@ public class SPIMIIndexer implements Indexer {
                 int documentId = documentInfo.id();
                 Iterator<String> terms = tokenizer.tokenizeAsStream(documentInfo.document()).iterator();
                 while (terms.hasNext()) {
-                    if (freeMemory() < minMemoryThreshold && block.size() >= MIN_TERMS_PER_BLOCK) {
-                        flushBlock(block);
-                        block = new HashMap<>();
-                    }
                     String term = terms.next();
                     List<Integer> postingList = block.computeIfAbsent(term, _ -> new ArrayList<>());
                     if (postingList.isEmpty() || !postingList.getLast().equals(documentId))

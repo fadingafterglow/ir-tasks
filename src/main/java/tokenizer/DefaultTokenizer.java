@@ -9,7 +9,7 @@ import java.util.stream.Stream;
 
 public class DefaultTokenizer implements Tokenizer {
 
-    private static final Pattern pattern = Pattern.compile("[^\\p{L}]{1,10}['-]|['-][^\\p{L}]{1,10}|[\\s,.?!;:\"“”‘’…/\\\\—–()\\[\\]{}&|№#$%+=^]+");
+    private static final Pattern pattern = Pattern.compile("[^\\p{L}]{1,3}['-]|['-][^\\p{L}]{1,3}|[\\s,.?!;:\"“”‘’…/\\\\—–()\\[\\]{}&|№#$%+=^]");
 
     @Override
     public Stream<String> tokenizeAsStream(String string) {
