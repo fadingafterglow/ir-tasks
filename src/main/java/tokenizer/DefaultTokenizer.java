@@ -14,7 +14,7 @@ public class DefaultTokenizer implements Tokenizer {
     @Override
     public Stream<String> tokenizeAsStream(String string) {
         return pattern.splitAsStream(string.toLowerCase(Locale.ROOT))
-                .filter(s -> !s.isBlank());
+                .filter(s -> !s.isBlank() && s.length() < 128);
     }
 
     @Override

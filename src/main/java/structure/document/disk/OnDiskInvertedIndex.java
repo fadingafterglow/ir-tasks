@@ -1,30 +1,34 @@
 package structure.document.disk;
 
+import encoders.EncodedInputStream;
 import lombok.SneakyThrows;
 import structure.document.Index;
 import tokenizer.Tokenizer;
 
 import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
 import java.io.Closeable;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
-import static structure.document.disk.Utils.*;
 
-public class UncompressedInvertedIndex implements Index, Closeable {
+public class OnDiskInvertedIndex implements Index, Closeable {
 
     private final Tokenizer tokenizer;
+    private final Function<InputStream, EncodedInputStream> encodedInputStreamFactory;
     private final Map<String, PostingListInfo> index;
     private final List<String> documentsMap;
     private final FileChannel postings;
 
-    public UncompressedInvertedIndex(Path indexDirectory, Tokenizer tokenizer) {
+    public OnDiskInvertedIndex(Path indexDirectory, Tokenizer tokenizer, Function<InputStream, EncodedInputStream> encodedInputStreamFactory) {
         this.tokenizer = tokenizer;
+        this.encodedInputStreamFactory = encodedInputStreamFactory;
         documentsMap = loadDocumentsMap(indexDirectory);
         index = loadIndex(indexDirectory);
         postings = initPostings(indexDirectory);
@@ -39,25 +43,23 @@ public class UncompressedInvertedIndex implements Index, Closeable {
     private Map<String, PostingListInfo> loadIndex(Path indexDirectory) {
         Map<String, PostingListInfo> index = new HashMap<>();
         String previousTerm = null;
+        int previousFrequency = 0;
         long previousPosition = 0;
-        byte[] intBuffer = new byte[4];
-        byte[] longBuffer = new byte[8];
-        try (BufferedInputStream is = new BufferedInputStream(Files.newInputStream(indexDirectory.resolve(Indexer.VOCABULARY_FILE_NAME)))) {
+        try (EncodedInputStream is = encodedInputStreamFactory.apply(new BufferedInputStream(Files.newInputStream(indexDirectory.resolve(Indexer.VOCABULARY_FILE_NAME))))) {
             while (is.available() > 12) {
-                is.read(intBuffer);
-                int termLength = bytesToInt(intBuffer);
-                String term = bytesToString(is.readNBytes(termLength));
-                is.read(longBuffer);
-                long position = bytesToLong(longBuffer);
+                String term = is.readString();
+                int frequency = is.readInt();
+                long position = is.readLong();
                 if (previousTerm != null)
-                    index.put(previousTerm, new PostingListInfo((int) ((position - previousPosition) / 4), previousPosition));
+                    index.put(previousTerm, new PostingListInfo(previousFrequency, previousPosition, (int)(position - previousPosition)));
                 previousTerm = term;
+                previousFrequency = frequency;
                 previousPosition = position;
             }
         }
         if (previousTerm != null) {
             long postingsSize = Files.size(indexDirectory.resolve(Indexer.POSTINGS_FILE_NAME));
-            index.put(previousTerm, new PostingListInfo((int) ((postingsSize - previousPosition) / 4), previousPosition));
+            index.put(previousTerm, new PostingListInfo(previousFrequency, previousPosition, (int)(postingsSize - previousPosition)));
         }
         return index;
     }
@@ -89,14 +91,18 @@ public class UncompressedInvertedIndex implements Index, Closeable {
     public List<Integer> getDocumentIds(String term) {
         PostingListInfo info = index.get(term);
         if (info == null) return List.of();
-        byte[] ids = new byte[info.frequency() * 4];
-        ByteBuffer buffer = ByteBuffer.wrap(ids).order(ByteOrder.BIG_ENDIAN);
+        byte[] ids = new byte[info.size()];
+        ByteBuffer buffer = ByteBuffer.wrap(ids);
         postings.read(buffer, info.position());
-        buffer.flip();
-        List<Integer> result = new ArrayList<>(info.frequency());
-        for (int i = 0; i < info.frequency(); i++)
-            result.add(buffer.getInt());
-        return result;
+        try (EncodedInputStream is = encodedInputStreamFactory.apply(new ByteArrayInputStream(ids))) {
+            List<Integer> result = new ArrayList<>(info.frequency());
+            int previousId = 0;
+            for (int i = 0; i < info.frequency(); i++) {
+                previousId += is.readInt();
+                result.add(previousId);
+            }
+            return result;
+        }
     }
 
     @Override
@@ -121,5 +127,5 @@ public class UncompressedInvertedIndex implements Index, Closeable {
         postings.close();
     }
 
-    private record PostingListInfo(int frequency, long position) {}
+    private record PostingListInfo(int frequency, long position, int size) {}
 }

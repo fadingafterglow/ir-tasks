@@ -1,12 +1,14 @@
 import document.Document;
 import document.PdfDocument;
 import document.TxtDocument;
+import encoders.VBEncodedInputStream;
+import encoders.VBEncodedOutputStream;
 import executor.*;
 import expression.Expression;
 import parser.Parser;
 import structure.document.*;
 import structure.document.disk.SPIMIIndexer;
-import structure.document.disk.UncompressedInvertedIndex;
+import structure.document.disk.OnDiskInvertedIndex;
 import structure.document.memory.*;
 import structure.vocabulary.PermutermIndex;
 import structure.vocabulary.ThreeGramIndex;
@@ -48,7 +50,7 @@ public class Main {
         if (getOption("Continue", "Index documents") != 1) return;
         String indexDirectory = getLine("Enter a path to the disk index directory (blank for default): ", DEFAULT_DISK_INDEX_DIRECTORY);
         List<Document> documents = loadDocuments();
-        SPIMIIndexer indexer = new SPIMIIndexer(indexDirectory);
+        SPIMIIndexer indexer = new SPIMIIndexer(indexDirectory, VBEncodedOutputStream::new, VBEncodedInputStream::new);
         logExecutionTime(() -> indexer.index(documents, new DefaultTokenizer()));
     }
 
@@ -99,7 +101,7 @@ public class Main {
         return switch (getOption("Inverted Index")) {
             case 0 -> {
                 log("Loading disk index...");
-                UncompressedInvertedIndex index = logExecutionTime(() -> new UncompressedInvertedIndex(Path.of(indexDirectory), tokenizer));
+                OnDiskInvertedIndex index = logExecutionTime(() -> new OnDiskInvertedIndex(Path.of(indexDirectory), tokenizer, VBEncodedInputStream::new));
                 yield new IndexQueryExecutor(index);
             }
             default -> throw new IllegalArgumentException("Invalid option");

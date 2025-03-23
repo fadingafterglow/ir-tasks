@@ -28,13 +28,21 @@ public abstract class BaseIndexerTest<I extends Indexer> {
 
     public BaseIndexerTest(I indexer) {
         this.indexer = indexer;
+        indexer.index(documents, new DefaultTokenizer());
     }
 
     @Test
-    public void testIndex() throws Exception {
-        indexer.index(documents, new DefaultTokenizer());
+    public void testDocumentsMap() throws Exception {
         assertIterableEquals(expectedDocumentsMap(), Files.readAllLines(directory.resolve(Indexer.DOCUMENTS_MAP_FILE_NAME)));
+    }
+
+    @Test
+    public void testVocabulary() throws Exception {
         assertArrayEquals(expectedVocabulary(), Files.readAllBytes(directory.resolve(Indexer.VOCABULARY_FILE_NAME)));
+    }
+
+    @Test
+    public void testPostings() throws Exception {
         assertArrayEquals(expectedPostings(), Files.readAllBytes(directory.resolve(Indexer.POSTINGS_FILE_NAME)));
     }
 
