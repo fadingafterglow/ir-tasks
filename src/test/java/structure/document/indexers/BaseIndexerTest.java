@@ -16,11 +16,11 @@ import static utils.MocksFactory.of;
 public abstract class BaseIndexerTest<I extends Indexer> {
 
     protected final static List<Document> documents = List.of(
-            of("0", "a D, f! H; i, a, d; H"),
-            of("1", "a E' \"g h\" [a h] H"),
-            of("2", "a #b f&h j"),
-            of("3", "b h g"),
-            of("4", "h 'f c?! d (e) f h")
+            of("0", "ape, apple help! hello? -Helsing :cool: death"),
+            of("1", "help? death, suffering, agony. depth"),
+            of("2", "ape - death - suffering"),
+            of("3", "death/depth hell"),
+            of("4", " death suffering#are dog")
     );
     protected final static Path directory = Path.of("src/test/resources/indexer");
 
@@ -37,8 +37,13 @@ public abstract class BaseIndexerTest<I extends Indexer> {
     }
 
     @Test
-    public void testVocabulary() throws Exception {
-        assertArrayEquals(expectedVocabulary(), Files.readAllBytes(directory.resolve(Indexer.VOCABULARY_FILE_NAME)));
+    public void testVocabularyString() throws Exception {
+        assertArrayEquals(expectedVocabularyString(), Files.readAllBytes(directory.resolve(Indexer.VOCABULARY_STRING_FILE_NAME)));
+    }
+
+    @Test
+    public void testVocabularyTable() throws Exception {
+        assertArrayEquals(expectedVocabularyTable(), Files.readAllBytes(directory.resolve(Indexer.VOCABULARY_TABLE_FILE_NAME)));
     }
 
     @Test
@@ -48,7 +53,9 @@ public abstract class BaseIndexerTest<I extends Indexer> {
 
     protected abstract List<String> expectedDocumentsMap();
 
-    protected abstract byte[] expectedVocabulary();
+    protected abstract byte[] expectedVocabularyString();
+
+    protected abstract byte[] expectedVocabularyTable();
 
     protected abstract byte[] expectedPostings();
 }

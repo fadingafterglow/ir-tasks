@@ -26,10 +26,9 @@ public class VBEncodedOutputStream implements EncodedOutputStream {
     @SneakyThrows
     public int write(long value) {
         int bytes = 0;
-        buffer[bytes++] = (byte) ((value & 0x7F) | 0x80);
-        while ((value >>>= 7) != 0) {
+        buffer[bytes++] = (byte) (value | 0x80);
+        while ((value >>>= 7) != 0)
             buffer[bytes++] = (byte) (value & 0x7F);
-        }
         for (int i = bytes - 1; i >= 0; i--)
             os.write(buffer, i, 1);
         return bytes;

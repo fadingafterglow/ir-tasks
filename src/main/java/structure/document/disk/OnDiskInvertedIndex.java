@@ -1,14 +1,14 @@
 package structure.document.disk;
 
 import encoders.EncodedInputStream;
+import encoders.VocabularyDecoder;
+import encoders.VocabularyFrontDecoder;
+import encoders.VocabularyFrontEncoder;
 import lombok.SneakyThrows;
 import structure.document.Index;
 import tokenizer.Tokenizer;
 
-import java.io.BufferedInputStream;
-import java.io.ByteArrayInputStream;
-import java.io.Closeable;
-import java.io.InputStream;
+import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
@@ -22,15 +22,20 @@ public class OnDiskInvertedIndex implements Index, Closeable {
 
     private final Tokenizer tokenizer;
     private final Function<InputStream, EncodedInputStream> encodedInputStreamFactory;
-    private final Map<String, PostingListInfo> index;
     private final List<String> documentsMap;
+    private final VocabularyDecoder vocabularyDecoder;
+    private final List<VocabularyBlock> vocabularyBlocks;
+    private final List<PostingListInfo> postingListInfos;
     private final FileChannel postings;
 
     public OnDiskInvertedIndex(Path indexDirectory, Tokenizer tokenizer, Function<InputStream, EncodedInputStream> encodedInputStreamFactory) {
         this.tokenizer = tokenizer;
         this.encodedInputStreamFactory = encodedInputStreamFactory;
         documentsMap = loadDocumentsMap(indexDirectory);
-        index = loadIndex(indexDirectory);
+        vocabularyDecoder = initVocabularyDecoder(indexDirectory);
+        vocabularyBlocks = new ArrayList<>();
+        postingListInfos = new ArrayList<>();
+        loadVocabularyTable(indexDirectory);
         postings = initPostings(indexDirectory);
     }
 
@@ -40,28 +45,25 @@ public class OnDiskInvertedIndex implements Index, Closeable {
     }
 
     @SneakyThrows
-    private Map<String, PostingListInfo> loadIndex(Path indexDirectory) {
-        Map<String, PostingListInfo> index = new HashMap<>();
-        String previousTerm = null;
-        int previousFrequency = 0;
-        long previousPosition = 0;
-        try (EncodedInputStream is = encodedInputStreamFactory.apply(new BufferedInputStream(Files.newInputStream(indexDirectory.resolve(Indexer.VOCABULARY_FILE_NAME))))) {
-            while (is.available() > 12) {
-                String term = is.readString();
-                int frequency = is.readInt();
-                long position = is.readLong();
-                if (previousTerm != null)
-                    index.put(previousTerm, new PostingListInfo(previousFrequency, previousPosition, (int)(position - previousPosition)));
-                previousTerm = term;
-                previousFrequency = frequency;
-                previousPosition = position;
+    private VocabularyDecoder initVocabularyDecoder(Path indexDirectory) {
+        byte[] vocabularyString = Files.readAllBytes(indexDirectory.resolve(Indexer.VOCABULARY_STRING_FILE_NAME));
+        return new VocabularyFrontDecoder(vocabularyString, encodedInputStreamFactory);
+    }
+
+    @SneakyThrows
+    private void loadVocabularyTable(Path indexDirectory) {
+        try (EncodedInputStream is = encodedInputStreamFactory.apply(new BufferedInputStream(Files.newInputStream(indexDirectory.resolve(Indexer.VOCABULARY_TABLE_FILE_NAME))))) {
+            while (true) {
+                int position = is.readInt();
+                if (is.eofReached()) break;
+                vocabularyBlocks.add(new VocabularyBlock(position));
+                for (int i = 0; i < VocabularyFrontEncoder.TERMS_PER_BLOCK; i++) {
+                    PostingListInfo info = new PostingListInfo(is.readInt(), is.readLong());
+                    if (is.eofReached()) break;
+                    postingListInfos.add(info);
+                }
             }
         }
-        if (previousTerm != null) {
-            long postingsSize = Files.size(indexDirectory.resolve(Indexer.POSTINGS_FILE_NAME));
-            index.put(previousTerm, new PostingListInfo(previousFrequency, previousPosition, (int)(postingsSize - previousPosition)));
-        }
-        return index;
     }
 
     @SneakyThrows
@@ -76,7 +78,7 @@ public class OnDiskInvertedIndex implements Index, Closeable {
 
     @Override
     public int termsCount() {
-        return index.size();
+        return postingListInfos.size();
     }
 
     @Override
@@ -89,9 +91,10 @@ public class OnDiskInvertedIndex implements Index, Closeable {
     @Override
     @SneakyThrows
     public List<Integer> getDocumentIds(String term) {
-        PostingListInfo info = index.get(term);
-        if (info == null) return List.of();
-        byte[] ids = new byte[info.size()];
+        int index = getPostingListInfoIndex(term);
+        if (index == -1) return List.of();
+        PostingListInfo info = postingListInfos.get(index);
+        byte[] ids = new byte[getPostingListSize(index)];
         ByteBuffer buffer = ByteBuffer.wrap(ids);
         postings.read(buffer, info.position());
         try (EncodedInputStream is = encodedInputStreamFactory.apply(new ByteArrayInputStream(ids))) {
@@ -117,8 +120,8 @@ public class OnDiskInvertedIndex implements Index, Closeable {
 
     @Override
     public int getDocumentFrequency(String term) {
-        PostingListInfo info = index.get(term);
-        return info == null ? 0 : info.frequency();
+        int index = getPostingListInfoIndex(term);
+        return index == -1 ? 0 : postingListInfos.get(index).frequency();
     }
 
     @Override
@@ -127,5 +130,52 @@ public class OnDiskInvertedIndex implements Index, Closeable {
         postings.close();
     }
 
-    private record PostingListInfo(int frequency, long position, int size) {}
+    private int getPostingListInfoIndex(String term) {
+        int left = 0; int right = vocabularyBlocks.size() - 1;
+        while (left <= right) {
+            int mid = left + (right - left) / 2;
+            VocabularyBlock block = vocabularyBlocks.get(mid);
+            int index = block.indexInBlock(term);
+            if (index == -1)
+                right = mid - 1;
+            else if (index == VocabularyFrontEncoder.TERMS_PER_BLOCK)
+                left = mid + 1;
+            else if (index == -2)
+                break;
+            else
+                return mid * VocabularyFrontEncoder.TERMS_PER_BLOCK + index;
+        }
+        return -1;
+    }
+
+    @SneakyThrows
+    private int getPostingListSize(int index) {
+        if (index == postingListInfos.size() - 1)
+            return (int) (postings.size() - postingListInfos.getLast().position());
+        else
+            return (int) (postingListInfos.get(index + 1).position() - postingListInfos.get(index).position());
+    }
+
+    private record PostingListInfo(int frequency, long position) {}
+
+    private final class VocabularyBlock {
+        private final int position;
+
+        private VocabularyBlock(int position) {
+            this.position = position;
+        }
+
+        public int indexInBlock(String value) {
+            vocabularyDecoder.seek(position);
+            byte[] prefix = vocabularyDecoder.readPrefix();
+            for (int i = 0; i < VocabularyFrontEncoder.TERMS_PER_BLOCK; i++) {
+                String term = vocabularyDecoder.readTerm(prefix);
+                int comparison = value.compareTo(term);
+                if (comparison == 0) return i;
+                else if (comparison < 0 && i == 0) return -1;
+                else if (comparison > 0 && i == VocabularyFrontEncoder.TERMS_PER_BLOCK - 1) return VocabularyFrontEncoder.TERMS_PER_BLOCK;
+            }
+            return -2;
+        }
+    }
 }

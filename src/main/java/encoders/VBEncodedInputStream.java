@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 public class VBEncodedInputStream implements EncodedInputStream {
 
     private final InputStream is;
+    private boolean eofReached;
     private byte[] buffer;
 
     public VBEncodedInputStream(InputStream is) {
@@ -17,9 +18,15 @@ public class VBEncodedInputStream implements EncodedInputStream {
     }
 
     @Override
+    public boolean eofReached() {
+        return eofReached;
+    }
+
+    @Override
     @SneakyThrows
-    public int available() {
-        return is.available();
+    public void read(byte[] buffer, int offset, int length) {
+        if (is.read(buffer, offset, length) == -1)
+            eofReached = true;
     }
 
     @Override
@@ -32,7 +39,10 @@ public class VBEncodedInputStream implements EncodedInputStream {
     public long readLong() {
         long value = 0;
         do {
-            is.read(buffer);
+            if (is.read(buffer) == -1) {
+                eofReached = true;
+                return 0;
+            }
             value <<= 7;
             value |= buffer[0] & 0x7F;
         } while ((buffer[0] & 0x80) == 0);
@@ -42,7 +52,12 @@ public class VBEncodedInputStream implements EncodedInputStream {
     @Override
     @SneakyThrows
     public String readString() {
-        byte[] bytes = is.readNBytes(readInt());
+        int length = readInt();
+        byte[] bytes = is.readNBytes(length);
+        if (bytes.length != length) {
+            eofReached = true;
+            return "";
+        }
         return new String(bytes, StandardCharsets.UTF_8);
     }
 

@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 public class NotEncodedInputStream implements EncodedInputStream {
 
     private final InputStream is;
+    private boolean eofReached;
     private byte[] intBuffer;
     private byte[] longBuffer;
 
@@ -19,29 +20,46 @@ public class NotEncodedInputStream implements EncodedInputStream {
     }
 
     @Override
+    public boolean eofReached() {
+        return eofReached;
+    }
+
+    @Override
     @SneakyThrows
-    public int available() {
-        return is.available();
+    public void read(byte[] buffer, int offset, int length) {
+        if (is.read(buffer, offset, length) == -1)
+            eofReached = true;
     }
 
     @Override
     @SneakyThrows
     public int readInt() {
-        is.read(intBuffer);
+        if (is.read(intBuffer) == -1) {
+            eofReached = true;
+            return 0;
+        }
         return bytesToInt();
     }
 
     @Override
     @SneakyThrows
     public long readLong() {
-        is.read(longBuffer);
+        if (is.read(longBuffer) == -1) {
+            eofReached = true;
+            return 0;
+        }
         return bytesToLong();
     }
 
     @Override
     @SneakyThrows
     public String readString() {
-        byte[] bytes = is.readNBytes(readInt());
+        int length = readInt();
+        byte[] bytes = is.readNBytes(length);
+        if (bytes.length != length) {
+            eofReached = true;
+            return "";
+        }
         return new String(bytes, StandardCharsets.UTF_8);
     }
 

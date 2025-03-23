@@ -3,6 +3,8 @@ package structure.document.disk;
 import document.Document;
 import encoders.EncodedInputStream;
 import encoders.EncodedOutputStream;
+import encoders.VocabularyEncoder;
+import encoders.VocabularyFrontEncoder;
 import lombok.SneakyThrows;
 import tokenizer.Tokenizer;
 
@@ -74,7 +76,7 @@ public class SPIMIIndexer implements Indexer {
         PriorityQueue<Block> queue = initBlockQueue();
         long position = 0;
         try (EncodedOutputStream osPostings = os(POSTINGS_FILE_NAME);
-             EncodedOutputStream osVocabulary = os(VOCABULARY_FILE_NAME)) {
+             VocabularyEncoder osVocabulary = new VocabularyFrontEncoder(os(VOCABULARY_STRING_FILE_NAME), os(VOCABULARY_TABLE_FILE_NAME))) {
             while (!queue.isEmpty()) {
                 Block block = queue.poll();
                 String term = block.currentTerm();
@@ -87,9 +89,7 @@ public class SPIMIIndexer implements Indexer {
                 }
                 if (block.advance()) queue.add(block);
                 else block.close();
-                osVocabulary.write(term);
-                osVocabulary.write(documentIds.size());
-                osVocabulary.write(position);
+                osVocabulary.write(term, documentIds.size(), position);
                 int previousDocumentId = 0;
                 for (int documentId : documentIds) {
                     position += osPostings.write(documentId - previousDocumentId);
@@ -237,8 +237,6 @@ public class SPIMIIndexer implements Indexer {
 
         @SneakyThrows
         public boolean advance() {
-            if (is.available() < 4) return false;
-
             currentTerm = is.readString();
 
             int documentIdsCount = is.readInt();
@@ -246,7 +244,7 @@ public class SPIMIIndexer implements Indexer {
             for (int i = 0; i < documentIdsCount; i++)
                 currentDocumentIds.add(is.readInt());
 
-            return true;
+            return !is.eofReached();
         }
 
         @Override
