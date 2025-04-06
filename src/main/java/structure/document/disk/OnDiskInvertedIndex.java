@@ -5,7 +5,7 @@ import encoders.VocabularyDecoder;
 import encoders.VocabularyFrontDecoder;
 import encoders.VocabularyFrontEncoder;
 import lombok.SneakyThrows;
-import structure.document.Index;
+import structure.document.ZoneIndex;
 import tokenizer.Tokenizer;
 
 import java.io.*;
@@ -18,9 +18,10 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 
-public class OnDiskInvertedIndex implements Index, Closeable {
+public class OnDiskInvertedIndex implements ZoneIndex, Closeable {
 
     private final Tokenizer tokenizer;
+    private final int zonesCount;
     private final Function<InputStream, EncodedInputStream> encodedInputStreamFactory;
     private final List<String> documentsMap;
     private final VocabularyDecoder vocabularyDecoder;
@@ -29,7 +30,12 @@ public class OnDiskInvertedIndex implements Index, Closeable {
     private final FileChannel postings;
 
     public OnDiskInvertedIndex(Path indexDirectory, Tokenizer tokenizer, Function<InputStream, EncodedInputStream> encodedInputStreamFactory) {
+        this(indexDirectory, tokenizer, 1, encodedInputStreamFactory);
+    }
+
+    public OnDiskInvertedIndex(Path indexDirectory, Tokenizer tokenizer, int zonesCount, Function<InputStream, EncodedInputStream> encodedInputStreamFactory) {
         this.tokenizer = tokenizer;
+        this.zonesCount = zonesCount;
         this.encodedInputStreamFactory = encodedInputStreamFactory;
         documentsMap = loadDocumentsMap(indexDirectory);
         vocabularyDecoder = initVocabularyDecoder(indexDirectory);
@@ -83,9 +89,10 @@ public class OnDiskInvertedIndex implements Index, Closeable {
 
     @Override
     public String getDocumentName(int id) {
-        if (id < 0 || id >= documentsMap.size())
+        int documentId = id / zonesCount;
+        if (documentId < 0 || documentId >= documentsMap.size())
             return null;
-        return documentsMap.get(id);
+        return documentsMap.get(documentId);
     }
 
     @Override
@@ -115,13 +122,18 @@ public class OnDiskInvertedIndex implements Index, Closeable {
 
     @Override
     public List<Integer> getAllDocumentIds() {
-        return Stream.iterate(0, x -> x < documentsMap.size(), x -> x + 1).toList();
+        return Stream.iterate(0, x -> x < documentsMap.size() * zonesCount, x -> x + 1).toList();
     }
 
     @Override
     public int getDocumentFrequency(String term) {
         int index = getPostingListInfoIndex(term);
         return index == -1 ? 0 : postingListInfos.get(index).frequency();
+    }
+
+    @Override
+    public int getZonesCount() {
+        return zonesCount;
     }
 
     @Override

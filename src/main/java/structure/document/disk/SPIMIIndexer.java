@@ -5,6 +5,7 @@ import encoders.EncodedInputStream;
 import encoders.EncodedOutputStream;
 import encoders.VocabularyEncoder;
 import encoders.VocabularyFrontEncoder;
+import lombok.Getter;
 import lombok.SneakyThrows;
 import tokenizer.Tokenizer;
 
@@ -22,14 +23,20 @@ public class SPIMIIndexer implements Indexer {
     private static final int MAX_NUMBER_OF_THREADS = 10;
     private static final String BLOCK_FILE_PREFIX = "block-";
     private final Path path;
+    private final int zonesCount;
     private final Function<OutputStream, EncodedOutputStream> encodedOutputStreamFactory;
     private final Function<InputStream, EncodedInputStream> encodedInputStreamFactory;
     private Iterator<DocumentInfo> documentsIterator;
     private int blockId;
 
-    @SneakyThrows
     public SPIMIIndexer(String path, Function<OutputStream, EncodedOutputStream> encodedOutputStreamFactory, Function<InputStream, EncodedInputStream> encodedInputStreamFactory) {
+        this(path, 1, encodedOutputStreamFactory, encodedInputStreamFactory);
+    }
+
+    @SneakyThrows
+    public SPIMIIndexer(String path, int zonesCount, Function<OutputStream, EncodedOutputStream> encodedOutputStreamFactory, Function<InputStream, EncodedInputStream> encodedInputStreamFactory) {
         this.path = Path.of(path);
+        this.zonesCount = zonesCount;
         Files.createDirectories(this.path);
         this.encodedOutputStreamFactory = encodedOutputStreamFactory;
         this.encodedInputStreamFactory = encodedInputStreamFactory;
@@ -80,16 +87,18 @@ public class SPIMIIndexer implements Indexer {
             while (!queue.isEmpty()) {
                 Block block = queue.poll();
                 String term = block.currentTerm();
+                int frequency = block.currentFrequency();
                 LinkedList<Integer> documentIds = new LinkedList<>(block.currentDocumentIds());
                 while (!queue.isEmpty() && queue.peek().currentTerm().equals(term)) {
                     Block nextBlock = queue.poll();
+                    frequency += nextBlock.currentFrequency();
                     merge(documentIds, nextBlock.currentDocumentIds());
                     if (nextBlock.advance()) queue.add(nextBlock);
                     else nextBlock.close();
                 }
                 if (block.advance()) queue.add(block);
                 else block.close();
-                osVocabulary.write(term, documentIds.size(), position);
+                osVocabulary.write(term, frequency, position);
                 int previousDocumentId = 0;
                 for (int documentId : documentIds) {
                     position += osPostings.write(documentId - previousDocumentId);
@@ -177,7 +186,7 @@ public class SPIMIIndexer implements Indexer {
 
         @Override
         public void run() {
-            Map<String, List<Integer>> block = new HashMap<>();
+            Map<String, TermInfo> block = new HashMap<>();
             int blockSize = 0;
             while (true) {
                 DocumentInfo documentInfo = nextDocument();
@@ -187,31 +196,57 @@ public class SPIMIIndexer implements Indexer {
                     block = new HashMap<>();
                     blockSize = 0;
                 }
-                int documentId = documentInfo.id();
-                Iterator<String> terms = tokenizer.tokenizeAsStream(documentInfo.document()).iterator();
-                while (terms.hasNext()) {
-                    String term = terms.next();
-                    List<Integer> postingList = block.computeIfAbsent(term, _ -> new ArrayList<>());
-                    if (postingList.isEmpty() || !postingList.getLast().equals(documentId)) {
-                        postingList.add(documentId);
-                        blockSize += POSTING_SIZE;
+                int documentId = documentInfo.id() * zonesCount;
+                int zoneId = 0;
+                for (String zone : documentInfo.document().getZones()) {
+                    Iterator<String> terms = tokenizer.tokenizeAsStream(zone).iterator();
+                    while (terms.hasNext()) {
+                        String term = terms.next();
+                        TermInfo termInfo = block.computeIfAbsent(term, _ -> new TermInfo());
+                        if (termInfo.add(documentId + zoneId, zonesCount))
+                            blockSize += POSTING_SIZE;
                     }
+                    if (++zoneId >= zonesCount) break;
                 }
             }
             if (!block.isEmpty()) flushBlock(block);
         }
 
         @SneakyThrows
-        private void flushBlock(Map<String, List<Integer>> block) {
+        private void flushBlock(Map<String, TermInfo> block) {
             List<String> terms = block.keySet().stream().sorted().toList();
             try (EncodedOutputStream os = os(BLOCK_FILE_PREFIX + nextBlockId())) {
                 for (String term : terms) {
-                    List<Integer> documentIds = block.get(term);
+                    TermInfo termInfo = block.get(term);
                     os.write(term);
-                    os.write(documentIds.size());
-                    for (int documentId : documentIds)
+                    os.write(termInfo.getFrequency());
+                    os.write(termInfo.getPostingList().size());
+                    for (int documentId : termInfo.getPostingList())
                         os.write(documentId);
                 }
+            }
+        }
+
+        @Getter
+        private static class TermInfo {
+            private int frequency;
+            private final List<Integer> postingList = new ArrayList<>();
+
+            public boolean add(int id, int zonesCount) {
+                if (postingList.isEmpty()) {
+                    ++frequency;
+                    return postingList.add(id);
+                }
+                int lastId = postingList.getLast();
+                if (lastId == id) return false;
+                postingList.add(id);
+                if (documentId(id, zonesCount) != documentId(lastId, zonesCount))
+                    ++frequency;
+                return true;
+            }
+
+            private int documentId(int id, int zonesCount) {
+                return id - id % zonesCount;
             }
         }
     }
@@ -220,6 +255,7 @@ public class SPIMIIndexer implements Indexer {
 
         private final EncodedInputStream is;
         private String currentTerm;
+        private int currentFrequency;
         private List<Integer> currentDocumentIds;
 
         @SneakyThrows
@@ -231,6 +267,10 @@ public class SPIMIIndexer implements Indexer {
             return currentTerm;
         }
 
+        public int currentFrequency() {
+            return currentFrequency;
+        }
+
         public List<Integer> currentDocumentIds() {
             return currentDocumentIds;
         }
@@ -238,6 +278,8 @@ public class SPIMIIndexer implements Indexer {
         @SneakyThrows
         public boolean advance() {
             currentTerm = is.readString();
+
+            currentFrequency = is.readInt();
 
             int documentIdsCount = is.readInt();
             currentDocumentIds = new ArrayList<>(documentIdsCount);

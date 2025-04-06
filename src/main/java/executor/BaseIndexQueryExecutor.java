@@ -25,7 +25,15 @@ public abstract class BaseIndexQueryExecutor<T extends Index> implements QueryEx
         return executeForIds(query, estimation).stream().map(index::getDocumentName).toList();
     }
 
-    protected abstract void estimate(Expression query, Map<Expression, Integer> estimation);
+    protected void estimate(Expression query, Map<Expression, Integer> estimation) {
+        switch (query) {
+            case PhraseExpression pe -> estimatePhrase(pe, estimation);
+            case NotExpression ne -> estimateNot(ne, estimation);
+            case AndExpression ae -> estimateAnd(ae, estimation);
+            case OrExpression oe -> estimateOr(oe, estimation);
+            default -> throw new RuntimeException("Unsupported expression type: " + query.getClass());
+        }
+    }
 
     protected void estimatePhrase(PhraseExpression e, Map<Expression, Integer> estimation) {
         estimation.put(e, index.getDocumentFrequency(e.getPhrase()));
@@ -52,7 +60,15 @@ public abstract class BaseIndexQueryExecutor<T extends Index> implements QueryEx
         estimation.put(e, Math.clamp(sum, 0, Integer.MAX_VALUE));
     }
 
-    protected abstract List<Integer> executeForIds(Expression query, Map<Expression, Integer> estimation);
+    protected List<Integer> executeForIds(Expression query, Map<Expression, Integer> estimation) {
+        return switch (query) {
+            case PhraseExpression pe -> executePhrase(pe);
+            case NotExpression ne -> executeNot(ne, estimation);
+            case AndExpression ae -> executeAnd(ae, estimation);
+            case OrExpression oe -> executeOr(oe, estimation);
+            default -> throw new RuntimeException("Unsupported expression type: " + query.getClass());
+        };
+    }
 
     protected List<Integer> executePhrase(PhraseExpression e) {
         return index.getDocumentIds(e.getPhrase());

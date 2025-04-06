@@ -58,6 +58,11 @@ public class MocksFactory {
             }
 
             @Override
+            public List<String> getZones() {
+                return List.of(body);
+            }
+
+            @Override
             public long getSize() {
                 return 0;
             }

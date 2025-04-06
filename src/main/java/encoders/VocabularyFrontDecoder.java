@@ -18,6 +18,7 @@ public class VocabularyFrontDecoder implements VocabularyDecoder {
     @Override
     public void seek(int position) {
         vocabularyString.seek(position);
+        is.resetEof();
     }
 
     @Override

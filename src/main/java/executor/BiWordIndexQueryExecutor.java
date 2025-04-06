@@ -14,34 +14,12 @@ public class BiWordIndexQueryExecutor extends BaseIndexQueryExecutor<BiWordIndex
     }
 
     @Override
-    protected void estimate(Expression query, Map<Expression, Integer> estimation) {
-        switch (query) {
-            case PhraseExpression pe -> estimatePhrase(pe, estimation);
-            case NotExpression ne -> estimateNot(ne, estimation);
-            case AndExpression ae -> estimateAnd(ae, estimation);
-            case OrExpression oe -> estimateOr(oe, estimation);
-            default -> throw new RuntimeException("Unsupported expression type: " + query.getClass());
-        }
-    }
-
-    @Override
     protected void estimatePhrase(PhraseExpression e, Map<Expression, Integer> estimation) {
         List<String> terms = index.getTokenizer().tokenize(e.getPhrase());
         int min = index.documentsCount();
         for (String term : terms)
             min = Math.min(min, index.getDocumentFrequency(term));
         estimation.put(e, min);
-    }
-
-    @Override
-    protected List<Integer> executeForIds(Expression query, Map<Expression, Integer> estimation) {
-        return switch (query) {
-            case PhraseExpression pe -> executePhrase(pe);
-            case NotExpression ne -> executeNot(ne, estimation);
-            case AndExpression ae -> executeAnd(ae, estimation);
-            case OrExpression oe -> executeOr(oe, estimation);
-            default -> throw new RuntimeException("Unsupported expression type: " + query.getClass());
-        };
     }
 
     @Override

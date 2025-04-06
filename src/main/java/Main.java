@@ -1,3 +1,4 @@
+import document.CsvDocument;
 import document.Document;
 import document.PdfDocument;
 import document.TxtDocument;
@@ -48,9 +49,10 @@ public class Main {
 
     private static void index() {
         if (getOption("Continue", "Index documents") != 1) return;
+        int option = getOption("Inverted index", "Zone index");
         String indexDirectory = getLine("Enter a path to the disk index directory (blank for default): ", DEFAULT_DISK_INDEX_DIRECTORY);
         List<Document> documents = loadDocuments();
-        SPIMIIndexer indexer = new SPIMIIndexer(indexDirectory, VBEncodedOutputStream::new, VBEncodedInputStream::new);
+        SPIMIIndexer indexer = new SPIMIIndexer(indexDirectory, option == 0 ? 1 : 4, VBEncodedOutputStream::new, VBEncodedInputStream::new);
         logExecutionTime(() -> indexer.index(documents, new DefaultTokenizer()));
     }
 
@@ -98,11 +100,16 @@ public class Main {
 
     private static QueryExecutor executorForOnDiskIndex(Tokenizer tokenizer) {
         String indexDirectory = getLine("Enter a path to the disk index directory (blank for default): ", DEFAULT_DISK_INDEX_DIRECTORY);
-        return switch (getOption("Inverted Index")) {
+        return switch (getOption("Inverted Index", "Zone Index")) {
             case 0 -> {
                 log("Loading disk index...");
                 OnDiskInvertedIndex index = logExecutionTime(() -> new OnDiskInvertedIndex(Path.of(indexDirectory), tokenizer, VBEncodedInputStream::new));
                 yield new IndexQueryExecutor(index);
+            }
+            case 1 -> {
+                log("Loading disk index...");
+                OnDiskInvertedIndex index = logExecutionTime(() -> new OnDiskInvertedIndex(Path.of(indexDirectory), tokenizer, 4, VBEncodedInputStream::new));
+                yield new ZoneIndexQueryExecutor(index, new double[] {0.15, 0.5, 0.1, 0.25});
             }
             default -> throw new IllegalArgumentException("Invalid option");
         };
@@ -114,7 +121,7 @@ public class Main {
             String path = getLine("Enter a path to a document or a directory with documents (blank for default): ", DEFAULT_DOCUMENTS_DIRECTORY);
             addDocument(new File(path), documents);
         }
-        System.out.println("Size of documents: " + documents.stream().mapToLong(Document::getSize).sum() + " bytes");
+        log("Size of documents: " + documents.stream().mapToLong(Document::getSize).sum() + " bytes");
         return documents;
     }
 
@@ -124,15 +131,17 @@ public class Main {
         else {
             String name = file.getName();
             if (!file.exists()) {
-                System.out.println("File \"" + name + "\" does not exist");
+                log("File \"" + name + "\" does not exist");
                 return;
             }
             if (name.endsWith(TxtDocument.TXT_EXTENSION))
                 documents.add(new TxtDocument(file.toPath()));
             else if (name.endsWith(PdfDocument.PDF_EXTENSION))
                 documents.add(new PdfDocument(file.toPath()));
+            else if (name.endsWith(CsvDocument.CSV_EXTENSION))
+                documents.add(new CsvDocument(file.toPath(), "title", "text", "authors", "tags"));
             else
-                System.out.println("Unsupported file type: " + name);
+                log("Unsupported file type: " + name);
         }
     }
 
@@ -147,11 +156,11 @@ public class Main {
 
     private static void displayResults(List<String> results) {
         if (results.isEmpty()) {
-            System.out.println("No documents found");
+            log("No documents found");
         } else {
-            System.out.println("Found documents:");
+            log("Found documents:");
             for (int i = 0; i < results.size(); i++)
-                System.out.println((i + 1) + ". " + results.get(i));
+                log((i + 1) + ". " + results.get(i));
         }
     }
 
@@ -166,7 +175,7 @@ public class Main {
                     return option;
             }
             catch (NumberFormatException e) {/* ignore */}
-            System.out.println("Invalid option, try again");
+            log("Invalid option, try again");
         }
     }
 

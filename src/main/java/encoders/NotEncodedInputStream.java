@@ -25,6 +25,11 @@ public class NotEncodedInputStream implements EncodedInputStream {
     }
 
     @Override
+    public void resetEof() {
+        eofReached = false;
+    }
+
+    @Override
     @SneakyThrows
     public void read(byte[] buffer, int offset, int length) {
         if (is.read(buffer, offset, length) == -1)

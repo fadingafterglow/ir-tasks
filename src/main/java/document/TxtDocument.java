@@ -3,6 +3,7 @@ package document;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 public class TxtDocument extends FileDocument {
 
@@ -23,6 +24,11 @@ public class TxtDocument extends FileDocument {
         } catch (IOException e) {
             throw new RuntimeException("Can not read a file: " + path, e);
         }
+    }
+
+    @Override
+    public List<String> getZones() {
+        return List.of(getBody());
     }
 
     @Override

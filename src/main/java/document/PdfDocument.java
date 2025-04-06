@@ -6,6 +6,7 @@ import org.apache.pdfbox.text.PDFTextStripper;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.List;
 
 public class PdfDocument extends FileDocument {
 
@@ -26,6 +27,11 @@ public class PdfDocument extends FileDocument {
         } catch (IOException e) {
             throw new RuntimeException("Can not read a file: " + path, e);
         }
+    }
+
+    @Override
+    public List<String> getZones() {
+        return List.of(getBody());
     }
 
     @Override
