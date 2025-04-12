@@ -1,11 +1,7 @@
 package structure.document.disk;
 
 import document.Document;
-import encoders.EncodedInputStream;
-import encoders.EncodedOutputStream;
-import encoders.VocabularyEncoder;
-import encoders.VocabularyFrontEncoder;
-import lombok.Getter;
+import encoders.*;
 import lombok.SneakyThrows;
 import tokenizer.Tokenizer;
 
@@ -22,24 +18,31 @@ public class SPIMIIndexer implements Indexer {
 
     private static final int MAX_NUMBER_OF_THREADS = 10;
     private static final String BLOCK_FILE_PREFIX = "block-";
+
     private final Path path;
     private final int zonesCount;
     private final Function<OutputStream, EncodedOutputStream> encodedOutputStreamFactory;
     private final Function<InputStream, EncodedInputStream> encodedInputStreamFactory;
+    private final Function<Integer, OutBlock> outBlockFactory;
+    private final Function<EncodedInputStream, InBlock> inBlockFactory;
+
     private Iterator<DocumentInfo> documentsIterator;
     private int blockId;
 
-    public SPIMIIndexer(String path, Function<OutputStream, EncodedOutputStream> encodedOutputStreamFactory, Function<InputStream, EncodedInputStream> encodedInputStreamFactory) {
-        this(path, 1, encodedOutputStreamFactory, encodedInputStreamFactory);
-    }
-
     @SneakyThrows
-    public SPIMIIndexer(String path, int zonesCount, Function<OutputStream, EncodedOutputStream> encodedOutputStreamFactory, Function<InputStream, EncodedInputStream> encodedInputStreamFactory) {
-        this.path = Path.of(path);
+    private SPIMIIndexer(Path path, int zonesCount,
+                        Function<OutputStream, EncodedOutputStream> encodedOutputStreamFactory,
+                        Function<InputStream, EncodedInputStream> encodedInputStreamFactory,
+                        Function<Integer, OutBlock> outBlockFactory,
+                        Function<EncodedInputStream, InBlock> inBlockFactory)
+    {
+        Files.createDirectories(path);
+        this.path = path;
         this.zonesCount = zonesCount;
-        Files.createDirectories(this.path);
         this.encodedOutputStreamFactory = encodedOutputStreamFactory;
         this.encodedInputStreamFactory = encodedInputStreamFactory;
+        this.outBlockFactory = outBlockFactory;
+        this.inBlockFactory = inBlockFactory;
     }
 
     @Override
@@ -80,59 +83,35 @@ public class SPIMIIndexer implements Indexer {
 
     @SneakyThrows
     private void mergeBlocks() {
-        PriorityQueue<Block> queue = initBlockQueue();
+        PriorityQueue<InBlock> queue = initBlockQueue();
         long position = 0;
         try (EncodedOutputStream osPostings = os(POSTINGS_FILE_NAME);
              VocabularyEncoder osVocabulary = new VocabularyFrontEncoder(os(VOCABULARY_STRING_FILE_NAME), os(VOCABULARY_TABLE_FILE_NAME))) {
             while (!queue.isEmpty()) {
-                Block block = queue.poll();
-                String term = block.currentTerm();
-                int frequency = block.currentFrequency();
-                LinkedList<Integer> documentIds = new LinkedList<>(block.currentDocumentIds());
-                while (!queue.isEmpty() && queue.peek().currentTerm().equals(term)) {
-                    Block nextBlock = queue.poll();
-                    frequency += nextBlock.currentFrequency();
-                    merge(documentIds, nextBlock.currentDocumentIds());
+                InBlock block = queue.poll();
+                InBlock.MergeResult mergeResult = block.toMergeResult();
+                while (!queue.isEmpty() && mergeResult.shouldMerge(queue.peek())) {
+                    InBlock nextBlock = queue.poll();
+                    mergeResult.merge(nextBlock);
                     if (nextBlock.advance()) queue.add(nextBlock);
                     else nextBlock.close();
                 }
                 if (block.advance()) queue.add(block);
                 else block.close();
-                osVocabulary.write(term, frequency, position);
-                int previousDocumentId = 0;
-                for (int documentId : documentIds) {
-                    position += osPostings.write(documentId - previousDocumentId);
-                    previousDocumentId = documentId;
-                }
+                position = mergeResult.save(position, osPostings, osVocabulary);
             }
         }
     }
 
-    private PriorityQueue<Block> initBlockQueue() {
-        PriorityQueue<Block> queue = new PriorityQueue<>();
+    @SneakyThrows
+    private PriorityQueue<InBlock> initBlockQueue() {
+        PriorityQueue<InBlock> queue = new PriorityQueue<>();
         for (int i = 0; i < blockId; i++) {
-            Block block = new Block(BLOCK_FILE_PREFIX + i);
+            InBlock block = inBlockFactory.apply(is(BLOCK_FILE_PREFIX + i));
             if (block.advance()) queue.add(block);
             else block.close();
         }
         return queue;
-    }
-
-    private void merge(LinkedList<Integer> left, List<Integer> right) {
-        ListIterator<Integer> leftIterator = left.listIterator();
-        outer:
-        for (int rightId : right) {
-            while (leftIterator.hasNext()) {
-                int leftId = leftIterator.next();
-                if (leftId == rightId)
-                    continue outer;
-                else if (leftId > rightId) {
-                    leftIterator.previous();
-                    break;
-                }
-            }
-            leftIterator.add(rightId);
-        }
     }
 
     @SneakyThrows
@@ -174,8 +153,7 @@ public class SPIMIIndexer implements Indexer {
 
     private class InverterThread extends Thread {
 
-        private static final int MIN_BLOCK_SIZE = 5_000_000;
-        private static final int POSTING_SIZE = 16;
+        private static final int MIN_BLOCK_SIZE = 10_000_000;
         private final Tokenizer tokenizer;
         private final long minMemoryThreshold;
 
@@ -186,26 +164,20 @@ public class SPIMIIndexer implements Indexer {
 
         @Override
         public void run() {
-            Map<String, TermInfo> block = new HashMap<>();
-            int blockSize = 0;
+            OutBlock block = outBlockFactory.apply(zonesCount);
             while (true) {
                 DocumentInfo documentInfo = nextDocument();
                 if (documentInfo == null) break;
-                if (blockSize >= MIN_BLOCK_SIZE && freeMemory() - documentInfo.document().getSize() < minMemoryThreshold) {
+                if (block.size() >= MIN_BLOCK_SIZE && freeMemory() - documentInfo.document().getSize() < minMemoryThreshold) {
                     flushBlock(block);
-                    block = new HashMap<>();
-                    blockSize = 0;
+                    block = outBlockFactory.apply(zonesCount);
                 }
                 int documentId = documentInfo.id() * zonesCount;
                 int zoneId = 0;
                 for (String zone : documentInfo.document().getZones()) {
-                    Iterator<String> terms = tokenizer.tokenizeAsStream(zone).iterator();
-                    while (terms.hasNext()) {
-                        String term = terms.next();
-                        TermInfo termInfo = block.computeIfAbsent(term, _ -> new TermInfo());
-                        if (termInfo.add(documentId + zoneId, zonesCount))
-                            blockSize += POSTING_SIZE;
-                    }
+                    final OutBlock b = block;
+                    final int id = documentId + zoneId;
+                    tokenizer.tokenizeAsStream(zone).forEach(t -> b.add(t, id));
                     if (++zoneId >= zonesCount) break;
                 }
             }
@@ -213,91 +185,64 @@ public class SPIMIIndexer implements Indexer {
         }
 
         @SneakyThrows
-        private void flushBlock(Map<String, TermInfo> block) {
-            List<String> terms = block.keySet().stream().sorted().toList();
+        private void flushBlock(OutBlock block) {
             try (EncodedOutputStream os = os(BLOCK_FILE_PREFIX + nextBlockId())) {
-                for (String term : terms) {
-                    TermInfo termInfo = block.get(term);
-                    os.write(term);
-                    os.write(termInfo.getFrequency());
-                    os.write(termInfo.getPostingList().size());
-                    for (int documentId : termInfo.getPostingList())
-                        os.write(documentId);
-                }
-            }
-        }
-
-        @Getter
-        private static class TermInfo {
-            private int frequency;
-            private final List<Integer> postingList = new ArrayList<>();
-
-            public boolean add(int id, int zonesCount) {
-                if (postingList.isEmpty()) {
-                    ++frequency;
-                    return postingList.add(id);
-                }
-                int lastId = postingList.getLast();
-                if (lastId == id) return false;
-                postingList.add(id);
-                if (documentId(id, zonesCount) != documentId(lastId, zonesCount))
-                    ++frequency;
-                return true;
-            }
-
-            private int documentId(int id, int zonesCount) {
-                return id - id % zonesCount;
+                block.flush(os);
             }
         }
     }
 
-    private class Block implements Comparable<Block>, Closeable {
+    public static Builder builder(Path path) {
+        return new Builder(path);
+    }
 
-        private final EncodedInputStream is;
-        private String currentTerm;
-        private int currentFrequency;
-        private List<Integer> currentDocumentIds;
+    public static Builder builder(String path) {
+        return new Builder(path);
+    }
 
-        @SneakyThrows
-        public Block(String fileName) {
-            is = is(fileName);
+    public static class Builder {
+        private final Path path;
+        private int zonesCount = 1;
+        private Function<OutputStream, EncodedOutputStream> encodedOutputStreamFactory = NotEncodedOutputStream::new;
+        private Function<InputStream, EncodedInputStream> encodedInputStreamFactory = NotEncodedInputStream::new;
+        private Function<Integer, OutBlock> outBlockFactory = DefaultOutBlock::new;
+        private Function<EncodedInputStream, InBlock> inBlockFactory = DefaultInBlock::new;
+
+        private Builder(Path path) {
+            this.path = path;
         }
 
-        public String currentTerm() {
-            return currentTerm;
+        private Builder(String path) {
+            this.path = Path.of(path);
         }
 
-        public int currentFrequency() {
-            return currentFrequency;
+        public Builder zonesCount(int zonesCount) {
+            this.zonesCount = zonesCount;
+            return this;
         }
 
-        public List<Integer> currentDocumentIds() {
-            return currentDocumentIds;
+        public Builder encodedOutputStreamFactory(Function<OutputStream, EncodedOutputStream> encodedOutputStreamFactory) {
+            this.encodedOutputStreamFactory = encodedOutputStreamFactory;
+            return this;
         }
 
-        @SneakyThrows
-        public boolean advance() {
-            currentTerm = is.readString();
-
-            currentFrequency = is.readInt();
-
-            int documentIdsCount = is.readInt();
-            currentDocumentIds = new ArrayList<>(documentIdsCount);
-            for (int i = 0; i < documentIdsCount; i++)
-                currentDocumentIds.add(is.readInt());
-
-            return !is.eofReached();
+        public Builder encodedInputStreamFactory(Function<InputStream, EncodedInputStream> encodedInputStreamFactory) {
+            this.encodedInputStreamFactory = encodedInputStreamFactory;
+            return this;
         }
 
-        @Override
-        @SneakyThrows
-        public void close() {
-            is.close();
+        public Builder outBlockFactory(Function<Integer, OutBlock> outBlockFactory) {
+            this.outBlockFactory = outBlockFactory;
+            return this;
         }
 
-        @Override
-        public int compareTo(Block o) {
-            return currentTerm().compareTo(o.currentTerm());
+        public Builder inBlockFactory(Function<EncodedInputStream, InBlock> inBlockFactory) {
+            this.inBlockFactory = inBlockFactory;
+            return this;
+        }
+
+        public SPIMIIndexer build() {
+            return new SPIMIIndexer(path, zonesCount, encodedOutputStreamFactory, encodedInputStreamFactory, outBlockFactory, inBlockFactory);
         }
     }
 }

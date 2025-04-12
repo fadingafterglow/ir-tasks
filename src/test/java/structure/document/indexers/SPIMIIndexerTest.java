@@ -1,7 +1,5 @@
 package structure.document.indexers;
 
-import encoders.NotEncodedInputStream;
-import encoders.NotEncodedOutputStream;
 import structure.document.disk.SPIMIIndexer;
 
 import java.util.List;
@@ -9,7 +7,7 @@ import java.util.List;
 public class SPIMIIndexerTest extends BaseIndexerTest<SPIMIIndexer> {
 
     public SPIMIIndexerTest() {
-        super(new SPIMIIndexer(directory.toString(), NotEncodedOutputStream::new, NotEncodedInputStream::new));
+        super(SPIMIIndexer.builder(directory.toString()).build());
     }
 
     @Override

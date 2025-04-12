@@ -52,7 +52,11 @@ public class Main {
         int option = getOption("Inverted index", "Zone index");
         String indexDirectory = getLine("Enter a path to the disk index directory (blank for default): ", DEFAULT_DISK_INDEX_DIRECTORY);
         List<Document> documents = loadDocuments();
-        SPIMIIndexer indexer = new SPIMIIndexer(indexDirectory, option == 0 ? 1 : 4, VBEncodedOutputStream::new, VBEncodedInputStream::new);
+        SPIMIIndexer indexer = SPIMIIndexer.builder(indexDirectory)
+                .zonesCount(option == 0 ? 1 : 4)
+                .encodedOutputStreamFactory(VBEncodedOutputStream::new)
+                .encodedInputStreamFactory(VBEncodedInputStream::new)
+                .build();
         logExecutionTime(() -> indexer.index(documents, new DefaultTokenizer()));
     }
 
