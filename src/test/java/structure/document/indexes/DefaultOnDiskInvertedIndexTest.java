@@ -1,16 +1,14 @@
 package structure.document.indexes;
 
-import encoders.NotEncodedInputStream;
 import structure.document.disk.Indexer;
-import structure.document.disk.OnDiskInvertedIndex;
-import tokenizer.DefaultTokenizer;
+import structure.document.disk.DefaultOnDiskInvertedIndex;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
-public class OnDiskInvertedIndexTest extends BaseIndexTest<OnDiskInvertedIndex> {
+public class DefaultOnDiskInvertedIndexTest extends BaseIndexTest<DefaultOnDiskInvertedIndex> {
 
     private final static Path directory = Path.of("src/test/resources/index");
 
@@ -52,7 +50,7 @@ public class OnDiskInvertedIndexTest extends BaseIndexTest<OnDiskInvertedIndex> 
         }
     }
 
-    public OnDiskInvertedIndexTest() {
-        super(new OnDiskInvertedIndex(directory, new DefaultTokenizer(), NotEncodedInputStream::new));
+    public DefaultOnDiskInvertedIndexTest() {
+        super(DefaultOnDiskInvertedIndex.builder(directory).build());
     }
 }

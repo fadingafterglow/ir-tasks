@@ -8,41 +8,44 @@ import lombok.SneakyThrows;
 import structure.document.ZoneIndex;
 import tokenizer.Tokenizer;
 
-import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
+import java.io.Closeable;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
 
-public class OnDiskInvertedIndex implements ZoneIndex, Closeable {
+public abstract class OnDiskInvertedIndex implements ZoneIndex, Closeable {
 
-    private final Tokenizer tokenizer;
-    private final int zonesCount;
-    private final Function<InputStream, EncodedInputStream> encodedInputStreamFactory;
-    private final List<String> documentsMap;
-    private final VocabularyDecoder vocabularyDecoder;
-    private final List<VocabularyBlock> vocabularyBlocks;
-    private final List<PostingListInfo> postingListInfos;
-    private final FileChannel postings;
+    protected final Tokenizer tokenizer;
+    protected final int zonesCount;
+    protected final Function<InputStream, EncodedInputStream> encodedInputStreamFactory;
+    protected final List<String> documentsMap;
+    protected final byte[] vocabularyString;
+    protected final List<VocabularyBlock> vocabularyBlocks;
+    protected final List<PostingListInfo> postingListInfos;
+    protected final ThreadLocal<VocabularyDecoder> vocabularyDecoder;
+    protected final ThreadLocal<FileChannel> postings;
 
-    public OnDiskInvertedIndex(Path indexDirectory, Tokenizer tokenizer, Function<InputStream, EncodedInputStream> encodedInputStreamFactory) {
-        this(indexDirectory, tokenizer, 1, encodedInputStreamFactory);
-    }
-
-    public OnDiskInvertedIndex(Path indexDirectory, Tokenizer tokenizer, int zonesCount, Function<InputStream, EncodedInputStream> encodedInputStreamFactory) {
+    public OnDiskInvertedIndex(Path indexDirectory, Tokenizer tokenizer, int zonesCount,
+                               Function<InputStream, EncodedInputStream> encodedInputStreamFactory) {
         this.tokenizer = tokenizer;
         this.zonesCount = zonesCount;
         this.encodedInputStreamFactory = encodedInputStreamFactory;
         documentsMap = loadDocumentsMap(indexDirectory);
-        vocabularyDecoder = initVocabularyDecoder(indexDirectory);
+        vocabularyString = loadVocabularyString(indexDirectory);
         vocabularyBlocks = new ArrayList<>();
         postingListInfos = new ArrayList<>();
         loadVocabularyTable(indexDirectory);
-        postings = initPostings(indexDirectory);
+        vocabularyDecoder = ThreadLocal.withInitial(this::initVocabularyDecoder);
+        postings = ThreadLocal.withInitial(() -> initPostings(indexDirectory));
     }
 
     @SneakyThrows
@@ -51,9 +54,8 @@ public class OnDiskInvertedIndex implements ZoneIndex, Closeable {
     }
 
     @SneakyThrows
-    private VocabularyDecoder initVocabularyDecoder(Path indexDirectory) {
-        byte[] vocabularyString = Files.readAllBytes(indexDirectory.resolve(Indexer.VOCABULARY_STRING_FILE_NAME));
-        return new VocabularyFrontDecoder(vocabularyString, encodedInputStreamFactory);
+    private byte[] loadVocabularyString(Path indexDirectory) {
+        return Files.readAllBytes(indexDirectory.resolve(Indexer.VOCABULARY_STRING_FILE_NAME));
     }
 
     @SneakyThrows
@@ -70,6 +72,11 @@ public class OnDiskInvertedIndex implements ZoneIndex, Closeable {
                 }
             }
         }
+    }
+
+    @SneakyThrows
+    private VocabularyDecoder initVocabularyDecoder() {
+        return new VocabularyFrontDecoder(vocabularyString, encodedInputStreamFactory);
     }
 
     @SneakyThrows
@@ -101,19 +108,47 @@ public class OnDiskInvertedIndex implements ZoneIndex, Closeable {
         int index = getPostingListInfoIndex(term);
         if (index == -1) return List.of();
         PostingListInfo info = postingListInfos.get(index);
-        byte[] ids = new byte[getPostingListSize(index)];
-        ByteBuffer buffer = ByteBuffer.wrap(ids);
-        postings.read(buffer, info.position());
-        try (EncodedInputStream is = encodedInputStreamFactory.apply(new ByteArrayInputStream(ids))) {
-            List<Integer> result = new ArrayList<>(info.frequency());
-            int previousId = 0;
-            for (int i = 0; i < info.frequency(); i++) {
-                previousId += is.readInt();
-                result.add(previousId);
-            }
-            return result;
+        byte[] list = readPostingList(index, info);
+        try (EncodedInputStream is = encodedInputStreamFactory.apply(new ByteArrayInputStream(list))) {
+            return extractIds(is, info);
         }
     }
+
+    protected int getPostingListInfoIndex(String term) {
+        int left = 0; int right = vocabularyBlocks.size() - 1;
+        while (left <= right) {
+            int mid = left + (right - left) / 2;
+            VocabularyBlock block = vocabularyBlocks.get(mid);
+            int index = block.indexInBlock(term);
+            if (index == -1)
+                right = mid - 1;
+            else if (index == VocabularyFrontEncoder.TERMS_PER_BLOCK)
+                left = mid + 1;
+            else if (index == -2)
+                break;
+            else
+                return mid * VocabularyFrontEncoder.TERMS_PER_BLOCK + index;
+        }
+        return -1;
+    }
+
+    @SneakyThrows
+    protected byte[] readPostingList(int index, PostingListInfo info) {
+        byte[] ids = new byte[getPostingListSize(index)];
+        ByteBuffer buffer = ByteBuffer.wrap(ids);
+        postings.get().read(buffer, info.position());
+        return ids;
+    }
+
+    @SneakyThrows
+    protected int getPostingListSize(int index) {
+        if (index == postingListInfos.size() - 1)
+            return (int) (postings.get().size() - postingListInfos.getLast().position());
+        else
+            return (int) (postingListInfos.get(index + 1).position() - postingListInfos.get(index).position());
+    }
+
+    protected abstract List<Integer> extractIds(EncodedInputStream is, PostingListInfo info);
 
     @Override
     public Tokenizer getTokenizer() {
@@ -139,38 +174,12 @@ public class OnDiskInvertedIndex implements ZoneIndex, Closeable {
     @Override
     @SneakyThrows
     public void close() {
-        postings.close();
+        postings.get().close();
     }
 
-    private int getPostingListInfoIndex(String term) {
-        int left = 0; int right = vocabularyBlocks.size() - 1;
-        while (left <= right) {
-            int mid = left + (right - left) / 2;
-            VocabularyBlock block = vocabularyBlocks.get(mid);
-            int index = block.indexInBlock(term);
-            if (index == -1)
-                right = mid - 1;
-            else if (index == VocabularyFrontEncoder.TERMS_PER_BLOCK)
-                left = mid + 1;
-            else if (index == -2)
-                break;
-            else
-                return mid * VocabularyFrontEncoder.TERMS_PER_BLOCK + index;
-        }
-        return -1;
-    }
+    protected record PostingListInfo(int frequency, long position) {}
 
-    @SneakyThrows
-    private int getPostingListSize(int index) {
-        if (index == postingListInfos.size() - 1)
-            return (int) (postings.size() - postingListInfos.getLast().position());
-        else
-            return (int) (postingListInfos.get(index + 1).position() - postingListInfos.get(index).position());
-    }
-
-    private record PostingListInfo(int frequency, long position) {}
-
-    private final class VocabularyBlock {
+    protected final class VocabularyBlock {
         private final int position;
 
         private VocabularyBlock(int position) {
@@ -178,10 +187,11 @@ public class OnDiskInvertedIndex implements ZoneIndex, Closeable {
         }
 
         public int indexInBlock(String value) {
-            vocabularyDecoder.seek(position);
-            byte[] prefix = vocabularyDecoder.readPrefix();
+            VocabularyDecoder decoder = vocabularyDecoder.get();
+            decoder.seek(position);
+            byte[] prefix = decoder.readPrefix();
             for (int i = 0; i < VocabularyFrontEncoder.TERMS_PER_BLOCK; i++) {
-                String term = vocabularyDecoder.readTerm(prefix);
+                String term = decoder.readTerm(prefix);
                 int comparison = value.compareTo(term);
                 if (comparison == 0) return i;
                 else if (comparison < 0 && i == 0) return -1;

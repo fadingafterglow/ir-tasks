@@ -9,7 +9,7 @@ import expression.Expression;
 import parser.Parser;
 import structure.document.*;
 import structure.document.disk.SPIMIIndexer;
-import structure.document.disk.OnDiskInvertedIndex;
+import structure.document.disk.DefaultOnDiskInvertedIndex;
 import structure.document.memory.*;
 import structure.vocabulary.PermutermIndex;
 import structure.vocabulary.ThreeGramIndex;
@@ -107,12 +107,21 @@ public class Main {
         return switch (getOption("Inverted Index", "Zone Index")) {
             case 0 -> {
                 log("Loading disk index...");
-                OnDiskInvertedIndex index = logExecutionTime(() -> new OnDiskInvertedIndex(Path.of(indexDirectory), tokenizer, VBEncodedInputStream::new));
+                DefaultOnDiskInvertedIndex index = logExecutionTime(() -> DefaultOnDiskInvertedIndex.builder(indexDirectory)
+                        .tokenizer(tokenizer)
+                        .encodedInputStreamFactory(VBEncodedInputStream::new)
+                        .build()
+                );
                 yield new IndexQueryExecutor(index);
             }
             case 1 -> {
                 log("Loading disk index...");
-                OnDiskInvertedIndex index = logExecutionTime(() -> new OnDiskInvertedIndex(Path.of(indexDirectory), tokenizer, 4, VBEncodedInputStream::new));
+                DefaultOnDiskInvertedIndex index = logExecutionTime(() -> DefaultOnDiskInvertedIndex.builder(indexDirectory)
+                        .tokenizer(tokenizer)
+                        .zonesCount(4)
+                        .encodedInputStreamFactory(VBEncodedInputStream::new)
+                        .build()
+                );
                 yield new ZoneIndexQueryExecutor(index, new double[] {0.15, 0.5, 0.1, 0.25});
             }
             default -> throw new IllegalArgumentException("Invalid option");
