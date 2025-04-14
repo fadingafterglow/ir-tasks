@@ -39,8 +39,13 @@ public class TfAwareOnDiskInvertedIndex extends OnDiskInvertedIndex implements T
     public List<TfAwareIndex.Entry> getEntries(String term) {
         int index = getPostingListInfoIndex(term);
         if (index == -1) return List.of();
-        PostingListInfo info = postingListInfos.get(index);
-        byte[] list = readPostingList(index, info);
+        return getEntries(index);
+    }
+
+    @SneakyThrows
+    public List<TfAwareIndex.Entry> getEntries(int termId) {
+        PostingListInfo info = postingListInfos.get(termId);
+        byte[] list = readPostingList(termId, info);
         try (EncodedInputStream is = encodedInputStreamFactory.apply(new ByteArrayInputStream(list))) {
             List<TfAwareIndex.Entry> result = new ArrayList<>(info.frequency());
             int previousId = 0;
@@ -51,6 +56,20 @@ public class TfAwareOnDiskInvertedIndex extends OnDiskInvertedIndex implements T
             }
             return result;
         }
+    }
+
+    @Override
+    public double getIdf(String term) {
+        return calculateIdf(getDocumentFrequency(term));
+    }
+
+    @Override
+    public double getIdf(int termId) {
+        return calculateIdf(postingListInfos.get(termId).frequency());
+    }
+
+    private double calculateIdf(int documentFrequency) {
+        return Math.log((double)documentsCount() / documentFrequency);
     }
 
     private static final class Entry implements TfAwareIndex.Entry {

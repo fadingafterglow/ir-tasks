@@ -12,7 +12,7 @@ import java.util.List;
 
 public class CsvDocument extends FileDocument {
 
-    public final static String CSV_EXTENSION = ".csv";
+    public final static String EXTENSION = "csv";
     private final String[] headers;
     private final CSVFormat csvFormat;
 
@@ -48,6 +48,6 @@ public class CsvDocument extends FileDocument {
 
     @Override
     protected String getExpectedExtension() {
-        return CSV_EXTENSION;
+        return EXTENSION;
     }
 }

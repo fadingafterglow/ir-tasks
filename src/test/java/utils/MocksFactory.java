@@ -1,5 +1,6 @@
 package utils;
 
+import clusterizer.Clusterizer;
 import document.Document;
 import structure.document.PositionalIndex;
 import structure.document.TfAwareIndex;
@@ -96,6 +97,36 @@ public class MocksFactory {
             @Override
             public int hashCode() {
                 return Objects.hash(documentId, termFrequency);
+            }
+        };
+    }
+
+    public static Clusterizer.ClusteredDocument of(int id, double similarity) {
+        return new Clusterizer.ClusteredDocument() {
+            @Override
+            public int getId() {
+                return id;
+            }
+
+            @Override
+            public double getSimilarity() {
+                return similarity;
+            }
+
+            @Override
+            public String toString() {
+                return String.format("(%d: %f)", id, similarity);
+            }
+
+            @Override
+            public boolean equals(Object o) {
+                if (!(o instanceof Clusterizer.ClusteredDocument entry)) return false;
+                return id == entry.getId() && Math.abs(similarity - entry.getSimilarity()) < 0.01;
+            }
+
+            @Override
+            public int hashCode() {
+                return Objects.hash(id, similarity);
             }
         };
     }

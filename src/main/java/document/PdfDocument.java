@@ -10,7 +10,7 @@ import java.util.List;
 
 public class PdfDocument extends FileDocument {
 
-    public final static String PDF_EXTENSION = ".pdf";
+    public final static String EXTENSION = "pdf";
 
     public PdfDocument(Path path) {
         super(path);
@@ -36,6 +36,6 @@ public class PdfDocument extends FileDocument {
 
     @Override
     protected String getExpectedExtension() {
-        return PDF_EXTENSION;
+        return EXTENSION;
     }
 }

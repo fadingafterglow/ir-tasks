@@ -1,15 +1,11 @@
-import document.CsvDocument;
-import document.Document;
-import document.PdfDocument;
-import document.TxtDocument;
+import clusterizer.Clusterizer;
+import clusterizer.DefaultClusterizer;
+import document.*;
 import encoders.VBEncodedInputStream;
 import encoders.VBEncodedOutputStream;
 import executor.*;
-import expression.Expression;
-import parser.Parser;
 import structure.document.*;
-import structure.document.disk.SPIMIIndexer;
-import structure.document.disk.DefaultOnDiskInvertedIndex;
+import structure.document.disk.*;
 import structure.document.memory.*;
 import structure.vocabulary.PermutermIndex;
 import structure.vocabulary.ThreeGramIndex;
@@ -30,20 +26,29 @@ public class Main {
 
     public static void main(String[] args) {
         index();
-        QueryExecutor queryExecutor = createExecutor();
-        while (true) {
-            try {
-                String query = getLine("Enter a query (blank to exit): ", "");
-                if (query.isBlank()) break;
-                log("Parsing query...");
-                Expression expression = logExecutionTime(() -> new Parser(query).parse());
-                log("Executing query...");
-                displayResults(logExecutionTime(() -> queryExecutor.execute(expression)));
-            }
-            catch (Exception e) {
-                log("Syntax error: " + e.getMessage());
-            }
-        }
+        TfAwareOnDiskInvertedIndex index = TfAwareOnDiskInvertedIndex.builder(DEFAULT_DISK_INDEX_DIRECTORY)
+                .encodedInputStreamFactory(VBEncodedInputStream::new)
+                .build();
+        Clusterizer clusterizer = new DefaultClusterizer();
+        clusterizer.clusterize(index);
+
+        index.close();
+
+//        index();
+//        QueryExecutor queryExecutor = createExecutor();
+//        while (true) {
+//            try {
+//                String query = getLine("Enter a query (blank to exit): ", "");
+//                if (query.isBlank()) break;
+//                log("Parsing query...");
+//                Expression expression = logExecutionTime(() -> new Parser(query).parse());
+//                log("Executing query...");
+//                displayResults(logExecutionTime(() -> queryExecutor.execute(expression)));
+//            }
+//            catch (Exception e) {
+//                log("Syntax error: " + e.getMessage());
+//            }
+//        }
     }
 
     private static void index() {
@@ -55,6 +60,8 @@ public class Main {
                 .zonesCount(option == 0 ? 1 : 4)
                 .encodedOutputStreamFactory(VBEncodedOutputStream::new)
                 .encodedInputStreamFactory(VBEncodedInputStream::new)
+                .outBlockFactory(TfAwareOutBlock::new)
+                .inBlockFactory(TfAwareInBlock::new)
                 .build();
         logExecutionTime(() -> indexer.index(documents, new DefaultTokenizer()));
     }
@@ -146,12 +153,9 @@ public class Main {
                 log("File \"" + name + "\" does not exist");
                 return;
             }
-            if (name.endsWith(TxtDocument.TXT_EXTENSION))
-                documents.add(new TxtDocument(file.toPath()));
-            else if (name.endsWith(PdfDocument.PDF_EXTENSION))
-                documents.add(new PdfDocument(file.toPath()));
-            else if (name.endsWith(CsvDocument.CSV_EXTENSION))
-                documents.add(new CsvDocument(file.toPath(), "title", "text", "authors", "tags"));
+            Document document = DocumentLoader.loadDocument(file.toPath());
+            if (document != null)
+                documents.add(document);
             else
                 log("Unsupported file type: " + name);
         }

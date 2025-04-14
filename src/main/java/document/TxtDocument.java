@@ -7,7 +7,7 @@ import java.util.List;
 
 public class TxtDocument extends FileDocument {
 
-    public final static String TXT_EXTENSION = ".txt";
+    public final static String EXTENSION = "txt";
 
     public TxtDocument(Path path) {
         super(path);
@@ -33,6 +33,6 @@ public class TxtDocument extends FileDocument {
 
     @Override
     protected String getExpectedExtension() {
-        return TXT_EXTENSION;
+        return EXTENSION;
     }
 }
