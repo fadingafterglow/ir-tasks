@@ -4,6 +4,8 @@ import document.*;
 import encoders.VBEncodedInputStream;
 import encoders.VBEncodedOutputStream;
 import executor.*;
+import expression.Expression;
+import parser.Parser;
 import structure.document.*;
 import structure.document.disk.*;
 import structure.document.memory.*;
@@ -18,6 +20,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 
 public class Main {
@@ -26,29 +29,21 @@ public class Main {
 
     public static void main(String[] args) {
         index();
-        TfAwareOnDiskInvertedIndex index = TfAwareOnDiskInvertedIndex.builder(DEFAULT_DISK_INDEX_DIRECTORY)
-                .encodedInputStreamFactory(VBEncodedInputStream::new)
-                .build();
-        Clusterizer clusterizer = new DefaultClusterizer();
-        clusterizer.clusterize(index);
-
-        index.close();
-
-//        index();
-//        QueryExecutor queryExecutor = createExecutor();
-//        while (true) {
-//            try {
-//                String query = getLine("Enter a query (blank to exit): ", "");
-//                if (query.isBlank()) break;
-//                log("Parsing query...");
-//                Expression expression = logExecutionTime(() -> new Parser(query).parse());
-//                log("Executing query...");
-//                displayResults(logExecutionTime(() -> queryExecutor.execute(expression)));
-//            }
-//            catch (Exception e) {
-//                log("Syntax error: " + e.getMessage());
-//            }
-//        }
+        clusterize();
+        QueryExecutor queryExecutor = createExecutor();
+        while (true) {
+            try {
+                String query = getLine("Enter a query (blank to exit): ", "");
+                if (query.isBlank()) break;
+                log("Parsing query...");
+                Expression expression = logExecutionTime(() -> new Parser(query).parse());
+                log("Executing query...");
+                displayResults(logExecutionTime(() -> queryExecutor.execute(expression)));
+            }
+            catch (Exception e) {
+                log("Syntax error: " + e.getMessage());
+            }
+        }
     }
 
     private static void index() {
@@ -64,6 +59,21 @@ public class Main {
                 .inBlockFactory(TfAwareInBlock::new)
                 .build();
         logExecutionTime(() -> indexer.index(documents, new DefaultTokenizer()));
+    }
+
+    private static void clusterize() {
+        if (getOption("Continue", "Clusterize documents") != 1) return;
+        String indexDirectory = getLine("Enter a path to the disk index directory (blank for default): ", DEFAULT_DISK_INDEX_DIRECTORY);
+        log("Loading disk index...");
+        TfAwareOnDiskInvertedIndex index = logExecutionTime(() ->
+                TfAwareOnDiskInvertedIndex.builder(indexDirectory)
+                    .encodedInputStreamFactory(VBEncodedInputStream::new)
+                    .build()
+        );
+        do {
+            log("Clusterizing...");
+            displayResults(logExecutionTime(() -> new DefaultClusterizer().clusterize(index)), index);
+        } while (getOption("Continue", "Reclusterize") == 1);
     }
 
     private static QueryExecutor createExecutor() {
@@ -177,6 +187,23 @@ public class Main {
             log("Found documents:");
             for (int i = 0; i < results.size(); i++)
                 log((i + 1) + ". " + results.get(i));
+        }
+    }
+
+    private static void displayResults(Map<Integer, List<Clusterizer.ClusteredDocument>> results, TfAwareOnDiskInvertedIndex index) {
+        if (results.isEmpty()) {
+            log("No documents found");
+        } else {
+            int i = 0;
+            for (Map.Entry<Integer, List<Clusterizer.ClusteredDocument>> entry : results.entrySet()) {
+                int leaderId = entry.getKey();
+                List<Clusterizer.ClusteredDocument> documents = entry.getValue();
+                log(String.format("%d. Cluster leader - %s:", ++i, index.getDocumentName(leaderId)));
+                int j = 0;
+                for (Clusterizer.ClusteredDocument document : documents)
+                    log(String.format("\t\t%d. %s (similarity: %.2f)",
+                            ++j, index.getDocumentName(document.getId()), document.getSimilarity()));
+            }
         }
     }
 
