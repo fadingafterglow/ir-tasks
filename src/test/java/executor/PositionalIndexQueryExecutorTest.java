@@ -11,6 +11,7 @@ import parser.Parser;
 import structure.document.PositionalIndex;
 import tokenizer.DefaultTokenizer;
 import tokenizer.Tokenizer;
+import utils.MocksFactory;
 
 import java.util.List;
 import java.util.stream.Stream;
@@ -19,7 +20,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static utils.MocksFactory.*;
 
 public class PositionalIndexQueryExecutorTest extends BaseQueryExecutorTest<PositionalIndexQueryExecutor> {
 
@@ -44,16 +44,16 @@ public class PositionalIndexQueryExecutorTest extends BaseQueryExecutorTest<Posi
         when(index.getDocumentIds("i")).thenReturn(List.of(0));
         when(index.getDocumentIds("j")).thenReturn(List.of(2));
         when(index.getDocumentIds("invalid")).thenReturn(List.of());
-        when(index.getPositions("a")).thenReturn(List.of(of(0, 0, 5), of(1, 0, 4), of(2, 0)));
-        when(index.getPositions("b")).thenReturn(List.of(of(2, 1), of(3, 0)));
-        when(index.getPositions("c")).thenReturn(List.of(of(4, 2)));
-        when(index.getPositions("d")).thenReturn(List.of(of(0, 1, 6), of(4, 3)));
-        when(index.getPositions("e")).thenReturn(List.of(of(1, 1), of(4, 4)));
-        when(index.getPositions("f")).thenReturn(List.of(of(0, 2), of(2, 2), of(4, 1, 5)));
-        when(index.getPositions("g")).thenReturn(List.of(of(1, 2), of(3, 2)));
-        when(index.getPositions("h")).thenReturn(List.of(of(0, 3, 7), of(1, 3, 5, 6), of(2, 3), of(3, 1), of(4, 0, 6)));
-        when(index.getPositions("i")).thenReturn(List.of(of(0, 4)));
-        when(index.getPositions("j")).thenReturn(List.of(of(2, 4)));
+        when(index.getPositions("a")).thenReturn(List.of(MocksFactory.ofP(0, 0, 5), MocksFactory.ofP(1, 0, 4), MocksFactory.ofP(2, 0)));
+        when(index.getPositions("b")).thenReturn(List.of(MocksFactory.ofP(2, 1), MocksFactory.ofP(3, 0)));
+        when(index.getPositions("c")).thenReturn(List.of(MocksFactory.ofP(4, 2)));
+        when(index.getPositions("d")).thenReturn(List.of(MocksFactory.ofP(0, 1, 6), MocksFactory.ofP(4, 3)));
+        when(index.getPositions("e")).thenReturn(List.of(MocksFactory.ofP(1, 1), MocksFactory.ofP(4, 4)));
+        when(index.getPositions("f")).thenReturn(List.of(MocksFactory.ofP(0, 2), MocksFactory.ofP(2, 2), MocksFactory.ofP(4, 1, 5)));
+        when(index.getPositions("g")).thenReturn(List.of(MocksFactory.ofP(1, 2), MocksFactory.ofP(3, 2)));
+        when(index.getPositions("h")).thenReturn(List.of(MocksFactory.ofP(0, 3, 7), MocksFactory.ofP(1, 3, 5, 6), MocksFactory.ofP(2, 3), MocksFactory.ofP(3, 1), MocksFactory.ofP(4, 0, 6)));
+        when(index.getPositions("i")).thenReturn(List.of(MocksFactory.ofP(0, 4)));
+        when(index.getPositions("j")).thenReturn(List.of(MocksFactory.ofP(2, 4)));
         when(index.getPositions("invalid")).thenReturn(List.of());
         when(index.getAllDocumentIds()).thenReturn(List.of(0, 1, 2, 3, 4));
         when(index.getDocumentFrequency("a")).thenReturn(3);

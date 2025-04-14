@@ -19,7 +19,6 @@ import tokenizer.DefaultTokenizer;
 import tokenizer.Tokenizer;
 
 import java.io.File;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;

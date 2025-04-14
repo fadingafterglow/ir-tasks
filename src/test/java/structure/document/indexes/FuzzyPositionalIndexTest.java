@@ -8,6 +8,7 @@ import structure.document.PositionalIndex;
 import structure.document.memory.FuzzyPositionalIndex;
 import structure.vocabulary.VocabularyIndex;
 import tokenizer.DefaultTokenizer;
+import utils.MocksFactory;
 
 import java.util.List;
 import java.util.stream.Stream;
@@ -15,7 +16,6 @@ import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
-import static utils.MocksFactory.of;
 
 public class FuzzyPositionalIndexTest extends BasePositionalIndexTest<FuzzyPositionalIndex> {
 
@@ -52,10 +52,10 @@ public class FuzzyPositionalIndexTest extends BasePositionalIndexTest<FuzzyPosit
 
     public static Stream<Arguments> testGetFuzzyPositions() {
         return Stream.of(
-                Arguments.of("*1", List.of(of(0, 0, 2, 3, 5, 7), of(1, 0, 3, 4, 5, 6), of(2, 0, 2, 3), of (3, 1), of(4, 0, 1, 5, 6))),
-                Arguments.of("*2", List.of(of(2, 4), of(4, 2))),
-                Arguments.of("*3", List.of(of(1, 1, 2), of(3, 2), of(4, 4))),
-                Arguments.of("*4", List.of(of(1, 1, 2), of(3, 2), of(4, 4)))
+                Arguments.of("*1", List.of(MocksFactory.ofP(0, 0, 2, 3, 5, 7), MocksFactory.ofP(1, 0, 3, 4, 5, 6), MocksFactory.ofP(2, 0, 2, 3), MocksFactory.ofP(3, 1), MocksFactory.ofP(4, 0, 1, 5, 6))),
+                Arguments.of("*2", List.of(MocksFactory.ofP(2, 4), MocksFactory.ofP(4, 2))),
+                Arguments.of("*3", List.of(MocksFactory.ofP(1, 1, 2), MocksFactory.ofP(3, 2), MocksFactory.ofP(4, 4))),
+                Arguments.of("*4", List.of(MocksFactory.ofP(1, 1, 2), MocksFactory.ofP(3, 2), MocksFactory.ofP(4, 4)))
         );
     }
 }

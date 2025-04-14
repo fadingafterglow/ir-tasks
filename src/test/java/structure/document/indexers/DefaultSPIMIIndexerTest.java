@@ -4,9 +4,9 @@ import structure.document.disk.SPIMIIndexer;
 
 import java.util.List;
 
-public class SPIMIIndexerTest extends BaseIndexerTest<SPIMIIndexer> {
+public class DefaultSPIMIIndexerTest extends BaseIndexerTest<SPIMIIndexer> {
 
-    public SPIMIIndexerTest() {
+    public DefaultSPIMIIndexerTest() {
         super(SPIMIIndexer.builder(directory.toString()).build());
     }
 

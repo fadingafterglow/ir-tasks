@@ -2,6 +2,7 @@ package utils;
 
 import document.Document;
 import structure.document.PositionalIndex;
+import structure.document.TfAwareIndex;
 
 import java.util.Arrays;
 import java.util.List;
@@ -9,7 +10,7 @@ import java.util.Objects;
 
 public class MocksFactory {
 
-    public static PositionalIndex.Entry of(int documentId, Integer... positions) {
+    public static PositionalIndex.Entry ofP(int documentId, Integer... positions) {
         List<Integer> positionsList = Arrays.asList(positions);
         return new PositionalIndex.Entry() {
             @Override
@@ -65,6 +66,36 @@ public class MocksFactory {
             @Override
             public long getSize() {
                 return 0;
+            }
+        };
+    }
+
+    public static TfAwareIndex.Entry ofT(int documentId, int termFrequency) {
+        return new TfAwareIndex.Entry() {
+            @Override
+            public int getDocumentId() {
+                return documentId;
+            }
+
+            @Override
+            public int getTermFrequency() {
+                return termFrequency;
+            }
+
+            @Override
+            public String toString() {
+                return String.format("(%d: %d)", documentId, termFrequency);
+            }
+
+            @Override
+            public boolean equals(Object o) {
+                if (!(o instanceof TfAwareIndex.Entry entry)) return false;
+                return documentId == entry.getDocumentId() && Objects.equals(termFrequency, entry.getTermFrequency());
+            }
+
+            @Override
+            public int hashCode() {
+                return Objects.hash(documentId, termFrequency);
             }
         };
     }

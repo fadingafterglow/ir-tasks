@@ -17,10 +17,10 @@ public abstract class BaseIndexerTest<I extends Indexer> {
 
     protected final static List<Document> documents = List.of(
             of("0", "ape, apple help! hello? -Helsing :cool: death"),
-            of("1", "help? death, suffering, agony. depth"),
-            of("2", "ape - death - suffering"),
-            of("3", "death/depth hell"),
-            of("4", " death suffering#are dog")
+            of("1", "help?help death, suffering, agony. depth! agony, agony"),
+            of("2", "ape - death - suffering - ape"),
+            of("3", "death/depth hell/depth"),
+            of("4", " are death suffering#are dog are (are)")
     );
     protected final static Path directory = Path.of("src/test/resources/indexer");
 
