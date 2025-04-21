@@ -12,7 +12,7 @@ public class DocumentLoader {
         return switch (getExtension(path)) {
             case TxtDocument.EXTENSION -> new TxtDocument(path);
             case PdfDocument.EXTENSION -> new PdfDocument(path);
-            case CsvDocument.EXTENSION -> new CsvDocument(path);
+            case CsvDocument.EXTENSION -> new CsvDocument(path, "title", "text", "authors", "tags");
             default -> null;
         };
     }
