@@ -55,8 +55,8 @@ public class Main {
                 .zonesCount(option == 0 ? 1 : 4)
                 .encodedOutputStreamFactory(VBEncodedOutputStream::new)
                 .encodedInputStreamFactory(VBEncodedInputStream::new)
-                .outBlockFactory(TfAwareOutBlock::new)
-                .inBlockFactory(TfAwareInBlock::new)
+                .outBlockFactory(DefaultOutBlock::new)
+                .inBlockFactory(DefaultInBlock::new)
                 .build();
         logExecutionTime(() -> indexer.index(documents, new DefaultTokenizer()));
     }
